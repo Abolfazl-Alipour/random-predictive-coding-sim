@@ -714,3 +714,327 @@ wide256-full 0.067. Baselines: Markov-1 0.278.
    clean codes (symmetric A12); (b) stack the learned ridge readout
    on d1 (section 18 scored 0.157 with the old noisy code) on top of
    the clean code.
+
+## 24. Why the sine fails: ceilings, stage probes, error profile (Nov 25, 21:36 PST)
+
+Reza's order (21:30 PST): establish that the theory can learn before
+making the problem bigger; find out why the sine and Lorenz do not
+work; deep investigation and trial and error; yes to learning
+module-1's projection too.
+
+Task: sine-fixed (frequency 0.05 cycles/step, random phase per
+sequence, length 200, K=32 bins, 50 train / 20 test, alpha 1.0,
+coactivity rule, 5 epochs). Reference: full 0.091, control 0.022,
+chance 0.031. Driver rpc_sine_diag.py, output
+rpc_sine_diag_results.txt.
+
+1. Ceilings (Markov fit on train, scored on test, 5 seeds): Markov-1
+   0.459 (range 0.405 to 0.549); Markov-2 0.802 (0.776 to 0.833);
+   Markov-3 0.833 (0.789 to 0.852). Every test step's previous bin
+   is ambiguous (fraction 1.000): the same bin occurs rising and
+   falling with different successors. So the one-step prediction the
+   thesis makes is capped at 0.459, and two steps of history cap at
+   0.802. The network's 0.091 is far below even the one-step ceiling.
+2. Stage probes (frozen network, ridge decode fit on train, scored
+   on test, 5 seeds; next-bin decode / direction decode, chance
+   0.031 / 0.333): r2_prev 0.953 / 0.984; y2_prev 0.607 / 0.748;
+   d1 0.602 / 0.740; r1 1.000 / 0.998; p1 1.000 / 0.946. The
+   reservoir holds the answer (0.953). The top-6 code throws away a
+   third of it (0.607). The learned distal drive transmits what the
+   code contains (0.602), so the LEARNING is not the bottleneck; the
+   CODE is.
+3. Prototype split: same-bin rising-vs-falling prototype cosine
+   0.419 (off-diagonal 0.177). The prototypes DO split by direction,
+   so the readout is not a blend. The code mixes rising and falling
+   (direction decode 0.748 vs the reservoir's 0.984), and the learned
+   distal map then averages the two successors.
+4. Trained-network error profile (3 seeds): rising accuracy 0.035 /
+   0.020 / 0.073, falling 0.157 / 0.085 / 0.098, flat 0.108 / 0.000 /
+   0.126. Errors are far, not near: 74 to 83 percent of errors are 6
+   or more bins away; only 5 to 7 percent are off by one bin. The
+   network picks the wrong direction's successor, not a neighbouring
+   bin. The rising/falling asymmetry (rising worse) is an open
+   observation, not yet explained.
+5. CORRECTION to the earlier hypothesis (rpc_alpha_sine.py
+   docstring): the docstring said the failure was that the next bin
+   cannot be read from the current bin alone. That is true but it is
+   not the binding failure: the reservoir state already contains the
+   next bin at 0.953, i.e. the history IS present in r2. The binding
+   failures are (a) the top-k code destroys it (0.953 to 0.607), and
+   (b) the network's own prediction (0.091) is far below even what
+   d1 contains (ridge 0.602), so the learned W_dist1 plus the
+   prototype readout lose another ~0.5. The delay line and wider
+   code are the direct fixes; the ridge readout on the TRAINED d1
+   will separate (a) from (b).
+6. New code: rpc_v2.py now has A13 (fit_prox1, learn module-1's
+   W_prox onto the same per-token code E as A12, before
+   calibration) and A14 (smooth_sigma, Gaussian-bump input instead
+   of one-hot, unit norm); step() returns p1 as well. All
+   token-to-input conversions (calibrate, build_prototypes, step)
+   go through _encode() so the encoding is consistent.
+7. Fix tests running (rpc_sine_fix.py, background, 3-seed screen):
+   delay, y2_frac 0.25, y2_frac 0.5, delay + y2_frac 0.25, smooth
+   1.5, prox1, prox + prox1 (each full + no-plasticity), ridge
+   readout on trained d1, and planted-motif prox1 / prox + prox1.
+   A 5-seed confirmation follows only for a variant that looks
+   close to the bars (acc >= 0.231, gain >= 0.10).
+
+## 25. Sine fix round 1: only the smooth input helps (Nov 25, 22:08 PST)
+
+Driver rpc_sine_fix.py, output rpc_sine_fix_results.txt. All
+sine-fixed, alpha 1.0, coactivity rule, 5 epochs, 3 seeds (screen).
+Reference (5 seeds, section 15): full 0.091, control 0.022. Bars:
+accuracy >= 0.231, gain >= 0.10 over the no-plasticity control.
+
+1. delay (A10, two-step distal drive): full 0.076 (range 0.039 to
+   0.099), control 0.024, gain +0.052. FAIL, slightly worse than the
+   reference. The two-step ceiling is 0.802 (section 24), but the
+   delay line does not reach toward it. Consistent with the probe:
+   r2_prev already contains the next bin at 0.953, so the history
+   the delay line adds was never missing; the code that carries it
+   is the problem.
+2. y2_frac 0.25 (16 of 64 winners): full 0.057, control 0.021, gain
+   +0.036. FAIL, and worse than the reference. y2_frac 0.5 (32 of
+   64): full 0.057, control 0.021, gain +0.036. FAIL. A wider code
+   HURTS the network's own prediction even though the probe said the
+   top-6 code loses information: wider codes overlap more, so the
+   Hebbian learning smears across tokens. The code loss is real but
+   widening the code is the wrong repair.
+3. delay + y2_frac 0.25: full 0.052, control 0.013, gain +0.039.
+   FAIL, the worst of the round. The two non-fixes do not combine
+   into a fix.
+4. smooth_sigma 1.5 (A14, Gaussian-bump input): full 0.145 (range
+   0.116 to 0.168), control 0.031, gain +0.114. PASSES the gain bar
+   (>= 0.10), FAILS the accuracy bar (0.231). Best sine score so
+   far, +0.054 over the reference. The metric structure matters:
+   neighbouring bins share input, so the reservoir state varies
+   smoothly with phase and the code mixes rising and falling less.
+   This is the only live lead.
+5. learn_prox1 (A13, clean module-1 code): full 0.028 (range 0.014
+   to 0.043), control 0.046, gain -0.018. FAIL, and full scores
+   BELOW its own control and below chance (0.031). Burst rate
+   collapses to 0.038 (reference ~0.136). The fitted W_prox makes
+   p1 a clean code but breaks the burst gate and the inhibition
+   path that runs through W_prox, so the network stops bursting and
+   the prediction collapses. A13 is dead for sine.
+6. learn_prox + learn_prox1 (both sides clean): full 0.032,
+   control 0.044, gain -0.012. FAIL. The "both sides clean"
+   hypothesis is dead: cleaning the post side hurts, and adding the
+   clean prediction side does not rescue it.
+7. Ridge readout on TRAINED d1 (3 seeds): full ridge 0.556 (range
+   0.405 to 0.675), prototype 0.078; no-plasticity ridge 0.606
+   (0.446 to 0.729), prototype 0.026. Frozen random d1 ridge was
+   0.602 (section 24). Two findings: (a) learning makes d1
+   slightly WORSE (0.556 trained vs 0.606 frozen control), so the
+   Hebbian learning adds no information to the distal drive on
+   sine; (b) the prototype readout (0.078) loses ~0.48 against a
+   trained readout on the same d1 (0.556). The readout is the
+   bigger bottleneck, the learning is the second one.
+8. Planted motifs, module-1 projection (alpha 1.0, coactivity, 3
+   seeds; reference full 0.072, control 0.064): prox1 full 0.060,
+   control 0.063, gain -0.003. prox + prox1 full 0.057, control
+   0.066, gain -0.009. Both FAIL. A13 does nothing for planted
+   motifs either. The post side was never the bottleneck there
+   (section 23 already showed the clean prediction side gives
+   +0.046 on its own); cleaning the post side adds nothing and
+   slightly hurts.
+9. Why the single-matrix Hebbian map cannot learn the sine: one row
+   of W_dist1 can only point at one successor pattern. The same
+   previous code must map to two different successors (rising and
+   falling), so the row learns their average and the prediction
+   matches neither. The delay line was meant to supply the context
+   that splits the two, but the code mixes the context (direction
+   decode 0.748 in y2 vs 0.984 in r2), so the two successors stay
+   averaged. The smooth input is the only variant that reduces the
+   mixing, and it does so at the input, before the code is formed.
+10. Round 2 running (rpc_sine_fix2.py, background): sigma sweep
+    1.0 / 2.0 / 3.0, smooth 1.5 + delay, and a 5-seed confirmation
+    of smooth 1.5. If the sigma sweep stalls below 0.231, the next
+    sharp test is a direction-split prototype set (two prototypes
+    per bin, rising and falling, matched by max cosine), which
+    attacks the readout gap (0.078 vs 0.556) without a trained
+    readout.
+
+## 26. Sine fix round 2: sigma 2.0 reaches 0.212, 5-seed correction on 1.5 (Nov 25, 22:26 PST)
+
+Driver rpc_sine_fix2.py, output rpc_sine_fix2_results.txt. All
+sine-fixed, alpha 1.0, coactivity rule, 5 epochs, 3 seeds unless
+noted. Bars: accuracy >= 0.231, gain >= 0.10.
+
+1. smooth_sigma 1.0: full 0.132 (range 0.077 to 0.199), control
+   0.029, gain +0.103. Passes the gain bar, fails the accuracy bar.
+2. smooth_sigma 2.0: full 0.212 (range 0.169 to 0.244), control
+   0.019, gain +0.193. Passes the gain bar easily; accuracy is
+   0.019 short of the bar. Best sine score so far by a wide margin.
+3. smooth_sigma 3.0: full 0.199 (range 0.119 to 0.259), control
+   0.027, gain +0.172. One seed hits 0.259, above the bar. The
+   sigma trend (1.0: 0.132, 1.5: 0.145, 2.0: 0.212, 3.0: 0.199)
+   peaks near 2.0 to 2.5.
+4. smooth 1.5 + delay: full 0.150 (range 0.088 to 0.221), control
+   0.032, gain +0.118. No better than smooth 1.5 alone (0.145).
+   The delay line adds nothing on top of smooth and is dead for
+   sine.
+5. CORRECTION: smooth 1.5 at 5 seeds is 0.129 (range 0.070 to
+   0.168), control 0.031, gain +0.098. It passes NEITHER bar at 5
+   seeds. The 3-seed numbers (0.145, gain +0.114) overestimated it
+   because seeds 3 and 4 scored 0.141 and 0.070. The 3-seed sigma
+   2.0 and 3.0 numbers above are therefore provisional until the
+   5-seed confirmations land; do not quote them as final.
+6. Round 3 running (rpc_sine_fix3.py, background): 5-seed
+   confirmations of sigma 2.0 / 2.5 / 3.0, smooth 2.0 with 10
+   epochs (3 seeds), and a mechanism probe (next-bin and direction
+   decode from r2_prev, y2_prev, d1 on a frozen smooth-2.0 net) to
+   test whether the smooth input raises the code's direction
+   information. If the 5-seed peak stalls below 0.231, the next
+   sharp test is a direction-split prototype set (section 25.10).
+
+## 27. Sine fix round 3: 5-seed peak is sigma 3.0 at 0.197; mechanism confirmed (Nov 25, 22:46 PST)
+
+Driver rpc_sine_fix3.py, output rpc_sine_fix3_results.txt. All
+sine-fixed, alpha 1.0, coactivity rule, 5 epochs unless noted, 5
+seeds unless noted. Bars: accuracy >= 0.231, gain >= 0.10.
+
+1. smooth_sigma 2.0, 5 seeds: full 0.182 (range 0.109 to 0.244),
+   control 0.021, gain +0.161. Passes the gain bar, fails the
+   accuracy bar. Lower than the 3-seed 0.212: seeds 3 and 4 scored
+   0.165 and 0.109.
+2. smooth_sigma 2.5, 5 seeds: full 0.163 (range 0.104 to 0.259),
+   control 0.022, gain +0.141. Worse than 2.0 at 5 seeds.
+3. smooth_sigma 3.0, 5 seeds: full 0.197 (range 0.119 to 0.259),
+   control 0.022, gain +0.175. Best 5-seed sine score so far.
+   Still 0.034 short of the accuracy bar.
+4. smooth_sigma 2.0, 10 epochs, 3 seeds: full 0.220 (range 0.177
+   to 0.245), control 0.019, gain +0.201. More training helps
+   (+0.008 over the 5-epoch 3-seed 0.212). Needs a 5-seed
+   confirmation.
+5. Mechanism probe CONFIRMED (frozen smooth-2.0 net, 3 seeds;
+   next-bin / direction decode): r2_prev 0.944 / 0.987 (one-hot
+   0.953 / 0.984, unchanged); y2_prev 0.684 / 0.915 (one-hot 0.607
+   / 0.748); d1 0.673 / 0.892 (one-hot 0.602 / 0.740). The smooth
+   input raises the code's direction information from 0.748 to
+   0.915, which is why the score rises. The reservoir already had
+   it; the smooth input lets the code carry it.
+6. New code: A15 direction-split prototypes in rpc_v2.py
+   (split_proto flag): three prototypes per bin (rising, falling,
+   flat, by the sign of tok minus the previous tok), empty combos
+   fall back to the plain prototype, prediction is argmax cosine
+   over the 3K set with token = idx % K. Smoke test, 1 epoch, seed
+   0: split + smooth 2.0 scores 0.204, split + one-hot scores
+   0.118. Both run without error.
+7. Round 4 running (rpc_sine_fix4.py, background): 5-seed
+   confirmations of smooth 2.0 and 3.0 with 10 epochs, split
+   prototypes on smooth 2.0 (5 epochs 5 seeds, 10 epochs 3
+   seeds), and split prototypes on one-hot (5 epochs 3 seeds).
+   If round 4 stalls below 0.231, the next moves are: (a) apply
+   the best smooth variant to the variable-frequency sine and to
+   Lorenz, to test whether the fix generalises beyond the fixed
+   sine; (b) a longer distal history on the smooth code, since
+   the code now carries direction cleanly.
+
+## 28. Sine fix round 4: split prototypes add nothing; the fixed sine stalls at ~0.20 (Nov 25, 23:16 PST)
+
+Driver rpc_sine_fix4.py, output rpc_sine_fix4_results.txt. All
+sine-fixed, alpha 1.0, coactivity rule, 5 epochs unless noted, 5
+seeds unless noted. Bars: accuracy >= 0.231, gain >= 0.10.
+
+1. smooth 2.0, 10 epochs, 5 seeds: full 0.193 (range 0.108 to
+   0.245), control 0.021, gain +0.172. +0.011 over its 5-epoch
+   5-seed 0.182, and below the 3-seed 0.220.
+2. smooth 3.0, 10 epochs, 5 seeds: full 0.199 (range 0.142 to
+   0.275), control 0.022, gain +0.177. Same as the 5-epoch 5-seed
+   0.197. Ten epochs add nothing at sigma 3.0.
+3. split prototypes + smooth 2.0, 5 epochs, 5 seeds: full 0.183
+   (range 0.099 to 0.286), control 0.027, gain +0.156. No gain
+   over plain smooth 2.0 (0.182). One seed hits 0.286, above the
+   bar, but the mean is flat.
+4. split prototypes + smooth 2.0, 10 epochs, 3 seeds: full 0.205
+   (range 0.153 to 0.268), control 0.019, gain +0.186. Slightly
+   WORSE than plain smooth 2.0 with 10 epochs (0.220 at 3 seeds).
+5. split prototypes + one-hot, 5 epochs, 3 seeds: full 0.074
+   (range 0.042 to 0.091), control 0.030, gain +0.044. No gain
+   over the one-hot reference (0.071 at 3 seeds). A15 is dead:
+   the split needs direction information in d1, and even when
+   smooth gives it that (d1 direction 0.892), the split adds
+   nothing, because the 3x prototype set also gives a wrong bin
+   three times as many chances to win the cosine match.
+6. The fixed sine has stalled. Best 5-seed scores across all
+   rounds: smooth 3.0 at 0.197-0.199, smooth 2.0 at 0.182-0.193.
+   Every variant that passes the gain bar fails the accuracy bar
+   by 0.032 to 0.049. The prototype readout is the binding
+   constraint and no tested variant repairs it; the ridge readout
+   (0.556-0.673 on d1) shows the information is there and the
+   readout cannot extract it.
+7. Round 5 running (rpc_sine_fix5.py, background): smooth 3.0
+   with alpha 0.7 / 0.5 and with n_res 400 on the fixed sine, and
+   the generalisation tests: variable-frequency sine and Lorenz
+   with smooth 3.0 (10 epochs), each with its own one-hot alpha
+   1.0 reference in the same settings. If round 5 also stalls,
+   the honest report is that the thesis readout caps the fixed
+   sine at ~0.20, and the next decision is Reza's: stop, accept
+   a trained readout (outside the thesis), or change the
+   architecture.
+
+## 29. Sine fix round 5, part A: slower reservoir and bigger reservoir on the fixed sine (Nov 25, 23:28 PST)
+
+Driver rpc_sine_fix5.py, output rpc_sine_fix5_results.txt. All
+sine-fixed, coactivity rule, 5 epochs, 3 seeds. Bars: accuracy
+>= 0.231, gain >= 0.10.
+
+1. smooth 3.0 + alpha 0.7: full 0.210 (range 0.097 to 0.268),
+   control 0.027, gain +0.183. Best fixed-sine 3-seed score yet,
+   but the range is wide (seed 2 scores 0.097) and it still fails
+   the accuracy bar. A slower reservoir plus a smooth input is
+   the best combination so far, but the seed variance says the
+   5-seed mean would likely regress toward ~0.19-0.20.
+2. smooth 3.0 + alpha 0.5: full 0.169 (range 0.035 to 0.263),
+   control 0.021, gain +0.148. Worse and unstable (seed 2 scores
+   0.035). Too slow a reservoir hurts.
+3. smooth 3.0 + n_res 400: full 0.200 (range 0.157 to 0.263),
+   control 0.030, gain +0.170. Same as n_res 200 (0.197-0.199).
+   Reservoir capacity is not the constraint.
+4. INTERRUPTION: the round-5 driver was killed by a runtime
+   restart at about 23:28 PT after the fixed-sine block (6 lines
+   verified in the results file, no EXIT line, no python process
+   left running). The variable-sine and Lorenz blocks never ran.
+   Resume driver rpc_sine_fix5b.py runs only those two blocks
+   (variable sine and Lorenz, smooth 3.0 with 10 epochs, each
+   with its own one-hot alpha 1.0 reference, 5 seeds), output
+   rpc_sine_fix5b_results.txt. The fixed-sine lines above are
+   final and will not be re-run.
+
+## 30. Sine fix round 5, part B: the smooth fix generalises in direction, not in size (Nov 25, 23:38 PST)
+
+Driver rpc_sine_fix5b.py (resume after the 23:28 runtime restart),
+output rpc_sine_fix5b_results.txt. All coactivity rule, 5 epochs,
+5 seeds, rpc_spatial defaults (proto_n 20). Bars: accuracy >=
+0.231, gain >= 0.10.
+
+1. Variable-frequency sine (each sequence its own frequency 0.02
+   to 0.08 and phase; reference one-hot alpha 0.3 is 0.040):
+   smooth 3.0 with 10 epochs full 0.108 (range 0.039 to 0.176),
+   control 0.036, gain +0.072. One-hot alpha 1.0 full 0.035,
+   control 0.030, gain +0.005. The smooth input triples the score
+   (0.035 to 0.108) but stalls far below the bar. The variable
+   sine needs frequency estimation, which is multi-step history,
+   and the prototype readout cannot use it.
+2. Lorenz x (reference one-hot alpha 0.3 is 0.045): smooth 3.0
+   with 10 epochs full 0.069 (range 0.039 to 0.109), control
+   0.041, gain +0.028. One-hot alpha 1.0 full 0.044, control
+   0.037, gain +0.007. The smooth input helps a little; the score
+   is barely above chance 0.031.
+3. Generalisation verdict: the smooth fix helps on every task
+   (fixed sine 0.091 to 0.199, variable sine 0.035 to 0.108,
+   Lorenz 0.044 to 0.069) but the ceiling falls as the task needs
+   more history. The prototype readout is the binding constraint
+   on all three. The trained ridge readout on the same distal
+   drive scores 0.556-0.673 on the fixed sine, so the information
+   is in the drive and the readout cannot extract it.
+4. Round 5 is complete. The sine/Lorenz boundary is now firm:
+   fixed sine ~0.20 at 5 seeds (best 0.210 at 3 seeds, smooth 3.0
+   + alpha 0.7), variable sine ~0.11, Lorenz ~0.07, all below the
+   bars. The next decision is Reza's: stop here, accept the
+   trained readout (which already passes the fixed-sine bar at
+   0.556), or try the one remaining idea inside the thesis's own
+   terms, a graded confirmation signal (strength proportional to
+   match quality instead of a binary burst gate), so the smooth
+   code's graded information drives learning proportionally.

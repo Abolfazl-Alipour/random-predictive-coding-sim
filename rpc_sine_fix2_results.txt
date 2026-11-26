@@ -1,0 +1,11 @@
+sine-fixed smooth1.0 full: acc mean=0.132 range=[0.077,0.199] chance=0.031 mean_burst=0.123 accs=[0.199, 0.077, 0.12]
+sine-fixed smooth1.0 no-plasticity: acc mean=0.029 range=[0.016,0.036] chance=0.031 mean_burst=0.022 accs=[0.035, 0.036, 0.016]
+sine-fixed smooth2.0 full: acc mean=0.212 range=[0.169,0.244] chance=0.031 mean_burst=0.131 accs=[0.244, 0.224, 0.169]
+sine-fixed smooth2.0 no-plasticity: acc mean=0.019 range=[0.008,0.032] chance=0.031 mean_burst=0.022 accs=[0.018, 0.008, 0.032]
+sine-fixed smooth3.0 full: acc mean=0.199 range=[0.119,0.259] chance=0.031 mean_burst=0.137 accs=[0.219, 0.259, 0.119]
+sine-fixed smooth3.0 no-plasticity: acc mean=0.027 range=[0.010,0.049] chance=0.031 mean_burst=0.023 accs=[0.049, 0.01, 0.024]
+sine-fixed smooth1.5+delay full: acc mean=0.150 range=[0.088,0.221] chance=0.031 mean_burst=0.146 accs=[0.221, 0.088, 0.14]
+sine-fixed smooth1.5+delay no-plasticity: acc mean=0.032 range=[0.017,0.048] chance=0.031 mean_burst=0.024 accs=[0.048, 0.017, 0.029]
+sine-fixed smooth1.5 5seed full: acc mean=0.129 range=[0.070,0.168] chance=0.031 mean_burst=0.133 accs=[0.168, 0.15, 0.116, 0.141, 0.07]
+sine-fixed smooth1.5 5seed no-plasticity: acc mean=0.031 range=[0.019,0.039] chance=0.031 mean_burst=0.023 accs=[0.039, 0.035, 0.019, 0.026, 0.039]
+EXIT=0

@@ -1,0 +1,9 @@
+sine smooth3.0-10ep full: acc mean=0.108 range=[0.039,0.176] chance=0.031 mean_burst=0.142 accs=[0.082, 0.176, 0.039, 0.11, 0.134]
+sine smooth3.0-10ep no-plasticity: acc mean=0.036 range=[0.022,0.052] chance=0.031 mean_burst=0.023 accs=[0.052, 0.042, 0.024, 0.022, 0.04]
+sine onehot-alpha1.0 full: acc mean=0.035 range=[0.019,0.061] chance=0.031 mean_burst=0.146 accs=[0.061, 0.019, 0.029, 0.036, 0.03]
+sine onehot-alpha1.0 no-plasticity: acc mean=0.030 range=[0.020,0.039] chance=0.031 mean_burst=0.024 accs=[0.026, 0.039, 0.028, 0.02, 0.037]
+lorenz smooth3.0-10ep full: acc mean=0.069 range=[0.039,0.109] chance=0.031 mean_burst=0.118 accs=[0.088, 0.066, 0.109, 0.044, 0.039]
+lorenz smooth3.0-10ep no-plasticity: acc mean=0.041 range=[0.026,0.056] chance=0.031 mean_burst=0.026 accs=[0.033, 0.026, 0.047, 0.04, 0.056]
+lorenz onehot-alpha1.0 full: acc mean=0.044 range=[0.010,0.062] chance=0.031 mean_burst=0.124 accs=[0.01, 0.043, 0.046, 0.062, 0.061]
+lorenz onehot-alpha1.0 no-plasticity: acc mean=0.037 range=[0.020,0.057] chance=0.031 mean_burst=0.025 accs=[0.043, 0.02, 0.035, 0.057, 0.027]
+EXIT=0

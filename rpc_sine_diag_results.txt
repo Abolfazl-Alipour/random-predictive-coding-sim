@@ -1,0 +1,15 @@
+sine-fixed Markov-1: mean=0.459 accs=[0.419, 0.549, 0.438, 0.405, 0.484]
+sine-fixed Markov-2: mean=0.802 accs=[0.79, 0.824, 0.785, 0.776, 0.833]
+sine-fixed Markov-3: mean=0.833 accs=[0.789, 0.839, 0.85, 0.835, 0.852]
+ambiguous-prev-bin fraction: mean=1.000
+frozen probe: next-bin decode (chance 0.031) / direction decode (chance 0.333):
+  r2_prev: next=0.953 [0.927,0.977] dir=0.984 [0.975,0.991]
+  y2_prev: next=0.607 [0.443,0.731] dir=0.748 [0.655,0.819]
+  d1: next=0.602 [0.459,0.730] dir=0.740 [0.646,0.820]
+  r1: next=1.000 [1.000,1.000] dir=0.998 [0.997,0.999]
+  p1: next=1.000 [1.000,1.000] dir=0.946 [0.872,0.992]
+same-bin rising-vs-falling prototype cosine: mean=0.419 (1.0 = identical, direction invisible to the prototype)
+mean off-diagonal prototype cosine: 0.177
+seed 0 trained: acc rising=0.035 falling=0.157 flat=0.108 | err distance: 0:0.00, 1:0.07, 2:0.03, 3:0.05, 4:0.06, 5:0.06, 6:0.74
+seed 1 trained: acc rising=0.020 falling=0.085 flat=0.000 | err distance: 0:0.00, 1:0.05, 2:0.05, 3:0.05, 4:0.04, 5:0.03, 6:0.78
+seed 2 trained: acc rising=0.073 falling=0.098 flat=0.126 | err distance: 0:0.00, 1:0.06, 2:0.02, 3:0.04, 4:0.01, 5:0.03, 6:0.83

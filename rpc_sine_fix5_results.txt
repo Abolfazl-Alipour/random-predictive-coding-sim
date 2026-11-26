@@ -1,0 +1,6 @@
+sine-fixed smooth3.0-alpha0.7 full: acc mean=0.210 range=[0.097,0.268] chance=0.031 mean_burst=0.130 accs=[0.265, 0.268, 0.097]
+sine-fixed smooth3.0-alpha0.7 no-plasticity: acc mean=0.027 range=[0.017,0.045] chance=0.031 mean_burst=0.022 accs=[0.045, 0.02, 0.017]
+sine-fixed smooth3.0-alpha0.5 full: acc mean=0.169 range=[0.035,0.263] chance=0.031 mean_burst=0.128 accs=[0.263, 0.21, 0.035]
+sine-fixed smooth3.0-alpha0.5 no-plasticity: acc mean=0.021 range=[0.010,0.031] chance=0.031 mean_burst=0.020 accs=[0.023, 0.01, 0.031]
+sine-fixed smooth3.0-nres400 full: acc mean=0.200 range=[0.157,0.263] chance=0.031 mean_burst=0.135 accs=[0.181, 0.263, 0.157]
+sine-fixed smooth3.0-nres400 no-plasticity: acc mean=0.030 range=[0.004,0.046] chance=0.031 mean_burst=0.026 accs=[0.004, 0.046, 0.038]

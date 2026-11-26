@@ -17,15 +17,20 @@ Hebbian learning.
 2. The model learns noiseless deterministic token sequences:
    repeating cycle 0.843 and pure motif 0.934 at reservoir leak
    rate 1.0 (5 seeds, held-out test).
-3. It fails in noise: planted motifs 0.077, sine 0.091, Lorenz
-   0.045, 1D track 0.098. Every fix tried so far moves the number
-   by 0.01 to 0.03 and none passes the bar.
+3. It fails in noise and on continuous signals: planted motifs
+   0.113 at best (learned proximal projection), fixed sine 0.199
+   at best (smooth input), variable sine 0.108, Lorenz 0.069,
+   1D track 0.098. Every fix tried so far moves the number by
+   0.01 to 0.03 except the smooth input, and none passes the bar.
 4. The bottleneck is the code, not the learning rule. The
    module-1 reservoir holds the current token perfectly (linear
    probe 1.000), but the module-2 code the distal drive reads
    identifies the previous token only 36% of the time. The loss
    happens at the random proximal projection and at the top-k
-   sparsification of the module-2 output.
+   sparsification of the module-2 output. A trained ridge readout
+   on the same distal drive scores 0.556 to 0.673 on the fixed
+   sine, so the information is in the drive and the prototype
+   readout cannot extract it.
 
 ## Key numbers
 
@@ -38,10 +43,17 @@ no-plasticity control.
 3. Planted motifs in noise, leak 1.0: 0.073 (control 0.064).
 4. Planted motifs, learned ridge readout: 0.157 (frozen control
    0.163, so the readout does the work, not RPC learning).
-5. Planted motifs, best fix so far (feedforward module 2):
-   0.090 (control 0.063).
+5. Planted motifs, best fix so far (learned proximal
+   projection, A12): 0.113 (control 0.067).
 6. Baselines on planted motifs: Markov-1 0.278, echo state
    network 0.274, LSTM 0.283.
+7. Fixed sine, smooth input sigma 3.0: 0.199 at 5 seeds
+   (control 0.022), best 0.210 at 3 seeds with leak rate 0.7.
+   One-hot input scores 0.091.
+8. Variable-frequency sine, smooth input sigma 3.0: 0.108
+   (control 0.036). One-hot input scores 0.035.
+9. Lorenz x, smooth input sigma 3.0: 0.069 (control 0.041).
+   One-hot input scores 0.044.
 
 ## How to run
 
@@ -55,7 +67,7 @@ no-plasticity control.
 ## Files
 
 1. `rpc_v2.py`: the model. All assumptions are labelled A1 to
-   A11 in the header.
+   A15 in the header.
 2. `rpc_toy.py`: the first version (v1). It never fires, because
    the distal drive starts at zero. Kept for the record, do not
    overwrite.
@@ -64,7 +76,10 @@ no-plasticity control.
 4. `rpc_simple.py`, `rpc_alpha.py`, `rpc_alpha2.py`,
    `rpc_planted_alpha.py`, `rpc_dense.py`, `rpc_readout.py`,
    `rpc_norm.py`, `rpc_delay.py`, `rpc_probe.py`, `rpc_probe2.py`,
-   `rpc_direct.py`, `rpc_fix.py`, `rpc_wide.py`: one driver per
+   `rpc_direct.py`, `rpc_fix.py`, `rpc_wide.py`, `rpc_prox.py`,
+   `rpc_alpha_sine.py`, `rpc_sine_diag.py`, `rpc_sine_fix.py`,
+   `rpc_sine_fix2.py`, `rpc_sine_fix3.py`, `rpc_sine_fix4.py`,
+   `rpc_sine_fix5.py`, `rpc_sine_fix5b.py`: one driver per
    experiment. Each has its own docstring with the question, the
    design, and the result.
 5. `simulation-results.md`: the full record.
@@ -77,5 +92,8 @@ no-plasticity control.
 
 ## Status
 
-Open hunt, last update Nov 25, 2026. The wide proximal layer
-test (`rpc_wide.py`, n_out 256) is the current open experiment.
+Boundary firm as of Nov 25, 2026: fixed sine about 0.20,
+variable sine about 0.11, Lorenz about 0.07, all below the
+bars. The next decision is whether to stop, accept a trained
+readout (0.556 on the fixed sine), or try a graded confirmation
+signal.

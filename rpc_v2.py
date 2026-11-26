@@ -154,6 +154,44 @@ ASSUMPTION A12 (learned proximal projection, Nov 25): W_prox, the
   bottleneck and the theory needs a plastic proximal path; if it
   fails, the bottleneck sits in the post term or the learning rule,
   not in W_prox.
+ASSUMPTION A13 (learned module-1 proximal projection, Nov 25): the
+  A12 result (0.113) cleaned only the prediction side (y2_prev). The
+  post side of the Hebbian pair, p1, is still a fixed random
+  projection of r1, so the learned rows pair a clean previous code
+  with a noisy current code. fit_prox1 fits mod1.W_prox by ridge
+  from r1 onto the SAME per-token code E as A12, train only, before
+  calibration, so prediction and post term share one code space.
+  The confirmation rule never touches mod1.W_prox, so the fit is
+  stable through training. Combined with A12 this is the "both
+  sides clean" test: if the planted and sine scores still stall,
+  the bottleneck is the learning rule's dilution, not the codes.
+ASSUMPTION A14 (smooth input code / population coding, Nov 25): the
+  one-hot token makes every pair of bins orthogonal, so the network
+  gets no hint that neighbouring sine bins are near in value. Real
+  neurons encode a continuous value with overlapping tuning curves.
+  With smooth_sigma > 0 the input is a Gaussian bump centred on the
+  bin (unit norm), so neighbouring bins share input. Single change:
+  only the input vector changes; classes, prototypes, and rules are
+  untouched. If the sine needs metric structure to learn phase,
+  this should move it; if it does not, the failure is not the input
+  code.
+ASSUMPTION A15 (direction-split prototypes, Nov 25): the readout
+  gap is the biggest remaining loss (section 24: prototype readout
+  0.078 vs ridge readout 0.556 on the same d1). One prototype per
+  bin averages the rising and falling versions of that bin, so a
+  distal drive that leans toward one direction still has to match
+  the blended mean. With split_proto on, build_prototypes stores
+  three prototypes per bin (rising, falling, flat, by the sign of
+  tok minus the previous tok); combos with no train occurrences fall
+  back to the plain prototype. Prediction is still argmax cosine
+  over the prototype set, and the token is idx % K. This is a
+  departure from the single-prototype thesis readout, but it stays
+  inside the thesis idea (match the prediction against stored
+  patterns): the stored pattern is now context-specific, as a
+  brain's prediction of a value on the way up differs from the
+  same value on the way down. It only helps if d1 itself carries
+  direction, which the smooth input gives it (section 27 probe:
+  d1 direction decode 0.892 at sigma 2.0 vs 0.740 one-hot).
 ASSUMPTION A5 (row-norm preservation after each Hebbian update):
   after every W_dist1 / W_prox update, each row is rescaled to its
   initial L2 norm. Justification: the v1 rules as written are purely
@@ -243,7 +281,8 @@ class RPCNetwork(torch.nn.Module):
                  learn_rule="burst", surround_beta=0.0,
                  d1_sharpen=False, post_topk=False, use_delay=False,
                  mod2_direct=False, rho2=None, y2_frac=0.1,
-                 learn_prox=False):
+                 learn_prox=False, smooth_sigma=0.0,
+                 learn_prox1=False, split_proto=False):
         # center_proto: subtract the mean prototype (over classes that
         # appear in train) from every prototype and from d1 before the
         # cosine prediction. Train-data means only, no new learned
@@ -273,6 +312,12 @@ class RPCNetwork(torch.nn.Module):
         # A12: fit W_prox by ridge regression (fit_prox) instead of
         # leaving it random. Set by run() before calibrate().
         self.learn_prox = learn_prox
+        # A13: fit mod1.W_prox the same way (fit_prox1). A14: smooth
+        # Gaussian-bump input instead of one-hot (sigma in bins, 0 = off).
+        self.learn_prox1 = learn_prox1
+        self.smooth_sigma = smooth_sigma
+        # A15: direction-split prototypes (see module docstring).
+        self.split_proto = split_proto
         # A9b/c: divisive sharpening of d1 at the readout only, and
         # top-k post term for the coactivity rule.
         self.d1_sharpen = d1_sharpen
@@ -365,7 +410,7 @@ class RPCNetwork(torch.nn.Module):
             for seq in data[:n_seq]:
                 self.reset()
                 for tok in seq:
-                    x = torch.nn.functional.one_hot(torch.tensor(tok), self.K).float()
+                    x = self._encode(tok)
                     p1, r1, _ = self.mod1.forward(x)
                     u2 = self._mod2_input(x, r1)
                     p2, r2, _ = self.mod2.forward(u2)
@@ -378,7 +423,7 @@ class RPCNetwork(torch.nn.Module):
             for seq in data[:n_seq]:
                 self.reset()
                 for tok in seq:
-                    x = torch.nn.functional.one_hot(torch.tensor(tok), self.K).float()
+                    x = self._encode(tok)
                     d1 = self._distal_drive()
                     p1, r1, _ = self.mod1.forward(x)
                     u2 = self._mod2_input(x, r1)
@@ -395,7 +440,7 @@ class RPCNetwork(torch.nn.Module):
             for seq in data[:n_seq]:
                 self.reset()
                 for tok in seq:
-                    x = torch.nn.functional.one_hot(torch.tensor(tok), self.K).float()
+                    x = self._encode(tok)
                     d1 = self._distal_drive()
                     p1, r1, _ = self.mod1.forward(x)
                     u2 = self._mod2_input(x, r1)
@@ -416,18 +461,36 @@ class RPCNetwork(torch.nn.Module):
     def build_prototypes(self, data, proto_n=20):
         sums = torch.zeros(self.K, self.mod1.n_out)
         counts = torch.zeros(self.K)
+        if self.split_proto:
+            ssums = torch.zeros(3 * self.K, self.mod1.n_out)
+            scounts = torch.zeros(3 * self.K)
         self.reset()
         with torch.no_grad():
             for seq in data[:proto_n]:
                 self.reset()
+                prev = None
                 for tok in seq:
-                    x = torch.nn.functional.one_hot(
-                        torch.tensor(tok), self.K).float()
+                    x = self._encode(tok)
                     p1, _, _ = self.mod1.forward(x)
                     sums[tok] += p1
                     counts[tok] += 1
-        self.prototypes = sums / counts[:, None].clamp(min=1)
-        self._finalize_prototypes(counts)
+                    if self.split_proto and prev is not None:
+                        d = 1 if tok > prev else (0 if tok < prev else 2)
+                        ssums[d * self.K + tok] += p1
+                        scounts[d * self.K + tok] += 1
+                    prev = tok
+        plain = sums / counts[:, None].clamp(min=1)
+        if self.split_proto:
+            split = ssums / scounts[:, None].clamp(min=1)
+            # Fallback: combos with no occurrences take the plain prototype.
+            empty = scounts == 0
+            idx = torch.arange(3 * self.K) % self.K
+            split[empty] = plain[idx[empty]]
+            self.prototypes = split
+            self._finalize_prototypes(scounts)
+        else:
+            self.prototypes = plain
+            self._finalize_prototypes(counts)
         self.reset()
 
     def _finalize_prototypes(self, counts):
@@ -470,6 +533,50 @@ class RPCNetwork(torch.nn.Module):
         W = np.linalg.solve(Rm.T @ Rm + lam * np.eye(Rm.shape[1]),
                             Rm.T @ Ym).T
         self.mod2.W_prox.copy_(torch.as_tensor(W, dtype=torch.float32))
+        self.reset()
+        resid = float(np.mean((Rm @ W.T - Ym) ** 2))
+        return {"fit_resid_mse": resid, "n_samples": len(R)}
+
+    def _encode(self, tok):
+        """Token -> input vector. Default is the one-hot code (the
+        thesis token). With smooth_sigma > 0 (A14), a Gaussian bump
+        centred on the token, unit L2 norm: neighbouring bins share
+        input, so the code carries metric structure instead of making
+        every pair of bins orthogonal."""
+        if self.smooth_sigma > 0:
+            j = torch.arange(self.K, dtype=torch.float32)
+            x = torch.exp(-0.5 * ((j - float(tok)) / self.smooth_sigma) ** 2)
+            return x / x.norm()
+        return torch.nn.functional.one_hot(torch.tensor(tok), self.K).float()
+
+    def fit_prox1(self, data, lam=1.0):
+        """A13: fit mod1.W_prox by ridge regression from the module-1
+        reservoir state r1 onto the SAME per-token code E used by
+        fit_prox, so the prediction (d1, in p1 space) and the post
+        term (p1) live in one shared code. Runs the frozen network;
+        r1 does not depend on W_prox, so this is safe before
+        calibrate(). If fit_prox has not run, creates E first. Sets
+        mod1.W_prox in place. Returns the fit residual."""
+        K, n_out = self.K, self.mod1.n_out
+        if not hasattr(self, "_prox_target"):
+            E = torch.randn(K, n_out) / math.sqrt(n_out)
+            E = torch.nn.functional.normalize(E, dim=1)
+            self._prox_target = E
+        E = self._prox_target
+        R, Y = [], []
+        with torch.no_grad():
+            for seq in data:
+                self.reset()
+                for i, tok in enumerate(seq):
+                    out = self.step(tok, train=False)
+                    if i > 0:
+                        R.append(out["r1"].numpy().copy())
+                        Y.append(E[tok].numpy().copy())
+        Rm = np.stack(R)
+        Ym = np.stack(Y)
+        W = np.linalg.solve(Rm.T @ Rm + lam * np.eye(Rm.shape[1]),
+                            Rm.T @ Ym).T
+        self.mod1.W_prox.copy_(torch.as_tensor(W, dtype=torch.float32))
         self.reset()
         resid = float(np.mean((Rm @ W.T - Ym) ** 2))
         return {"fit_resid_mse": resid, "n_samples": len(R)}
@@ -554,11 +661,13 @@ class RPCNetwork(torch.nn.Module):
         if self.center_proto:
             d1 = d1 - self._proto_mean
         a = torch.nn.functional.normalize(d1[None, :], dim=1)
-        return int(torch.argmax(a @ self._proto_norm.T).item())
+        idx = int(torch.argmax(a @ self._proto_norm.T).item())
+        # A15: split prototypes are laid out dir*K + tok; the token is idx % K.
+        return idx % self.K if self.split_proto else idx
 
     def step(self, tok, train=True, use_confirmation=True, use_burst=True,
              plasticity=True):
-        x = torch.nn.functional.one_hot(torch.tensor(tok), self.K).float()
+        x = self._encode(tok)
         return self._step_core(x, train=train, use_confirmation=use_confirmation,
                                use_burst=use_burst, plasticity=plasticity)
 
@@ -644,7 +753,7 @@ class RPCNetwork(torch.nn.Module):
                 # (u2, e2, r2, p2, y2) are for the stage-by-stage probe:
                 # where in the mod1-to-mod2 pathway does the token code
                 # degrade from r1's perfect 1.000 to y2's 0.361?
-                "y2_prev": y2_prev, "r1": r1,
+                "y2_prev": y2_prev, "r1": r1, "p1": p1,
                 "u2": u2, "e2": e2, "r2": r2, "p2": p2, "y2": y2}
 
 def run(train_data, test_data, epochs=5, **kw):
@@ -656,6 +765,10 @@ def run(train_data, test_data, epochs=5, **kw):
         # A12: fit W_prox before calibrate(), so the calibrated
         # scales are measured with the learned W_prox in place.
         net.fit_prox(train_data)
+    if getattr(net, "learn_prox1", False):
+        # A13: same, for module 1. Runs after fit_prox so both share
+        # the one per-token code E.
+        net.fit_prox1(train_data)
     cal = net.calibrate(train_data)
     net.build_prototypes(train_data, proto_n=proto_n)
     for ep in range(epochs):
