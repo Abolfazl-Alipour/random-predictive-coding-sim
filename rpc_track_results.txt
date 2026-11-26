@@ -1,0 +1,5 @@
+track persistence (predict current bin): 0.776
+track full: acc mean=0.080 range=[0.022,0.275] chance=0.031 mean_burst=0.072 accs=[0.039, 0.033, 0.275, 0.022, 0.033]
+track no-plasticity: acc mean=0.063 range=[0.043,0.101] chance=0.031 mean_burst=0.024 accs=[0.101, 0.066, 0.06, 0.045, 0.043]
+track no-confirmation: acc mean=0.098 range=[0.033,0.180] chance=0.031 mean_burst=0.129 accs=[0.18, 0.044, 0.134, 0.033, 0.097]
+EXIT:0

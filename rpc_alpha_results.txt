@@ -1,0 +1,9 @@
+trackF no-confirmation: acc mean=0.131 range=[0.020,0.244] chance=0.031 mean_burst=0.134 accs=[0.208, 0.088, 0.244, 0.02, 0.094]
+alpha=0.3: prototype off-diag cosine mean=0.890 max=0.954 min=0.827
+alpha=0.7: prototype off-diag cosine mean=0.461 max=0.729 min=0.233
+alpha=1.0: prototype off-diag cosine mean=0.147 max=0.400 min=-0.073
+cycle alpha=0.7 full: acc mean=0.608 range=[0.371,0.749] chance=0.125 mean_burst=0.136 accs=[0.371, 0.671, 0.518, 0.734, 0.749]
+cycle alpha=0.7 no-plasticity: acc mean=0.165 range=[0.119,0.297] chance=0.125 mean_burst=0.022 accs=[0.151, 0.119, 0.297, 0.127, 0.131]
+cycle alpha=1.0 full: acc mean=0.843 range=[0.728,0.989] chance=0.125 mean_burst=0.130 accs=[0.735, 0.728, 0.871, 0.889, 0.989]
+cycle alpha=1.0 no-plasticity: acc mean=0.147 range=[0.013,0.244] chance=0.125 mean_burst=0.025 accs=[0.244, 0.013, 0.122, 0.122, 0.236]
+DONE

@@ -1,0 +1,2 @@
+planted alpha1.0 direct-full: acc mean=0.088 range=[0.052,0.113] chance=0.062 mean_burst=0.150 accs=[0.103, 0.085, 0.113, 0.089, 0.052]
+planted alpha1.0 direct-no-plasticity: acc mean=0.065 range=[0.049,0.080] chance=0.062 mean_burst=0.024 accs=[0.067, 0.08, 0.057, 0.049, 0.07]

@@ -1,0 +1,4 @@
+sine-fixed alpha0.7 full: acc mean=0.079 range=[0.032,0.113] chance=0.031 mean_burst=0.128 accs=[0.091, 0.032, 0.113]
+sine-fixed alpha0.7 no-plasticity: acc mean=0.025 range=[0.009,0.041] chance=0.031 mean_burst=0.024 accs=[0.009, 0.025, 0.041]
+sine-fixed alpha0.5 full: acc mean=0.055 range=[0.040,0.083] chance=0.031 mean_burst=0.131 accs=[0.083, 0.042, 0.04]
+sine-fixed alpha0.5 no-plasticity: acc mean=0.042 range=[0.024,0.065] chance=0.031 mean_burst=0.024 accs=[0.024, 0.037, 0.065]

@@ -1,0 +1,6 @@
+lag2 full: acc mean=0.072 range=[0.056,0.081] chance=0.062 mean_burst=0.140 accs=[0.079, 0.081, 0.073, 0.073, 0.056]
+lag2 no-confirmation: acc mean=0.067 range=[0.053,0.083] chance=0.062 mean_burst=0.145 accs=[0.059, 0.083, 0.075, 0.063, 0.053]
+lag2 no-plasticity: acc mean=0.056 range=[0.037,0.070] chance=0.062 mean_burst=0.026 accs=[0.07, 0.059, 0.063, 0.037, 0.049]
+lag5 full: acc mean=0.073 range=[0.044,0.101] chance=0.062 mean_burst=0.143 accs=[0.065, 0.087, 0.101, 0.07, 0.044]
+lag5 no-confirmation: acc mean=0.067 range=[0.045,0.092] chance=0.062 mean_burst=0.145 accs=[0.092, 0.081, 0.057, 0.059, 0.045]
+lag5 no-plasticity: acc mean=0.058 range=[0.051,0.063] chance=0.062 mean_burst=0.027 accs=[0.063, 0.062, 0.062, 0.053, 0.051]

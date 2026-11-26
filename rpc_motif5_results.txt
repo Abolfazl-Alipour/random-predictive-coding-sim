@@ -1,0 +1,2 @@
+motif5 full: acc mean=0.334 range=[0.332,0.337] chance=0.250 mean_burst=0.075 accs=[0.337, 0.334, 0.332, 0.334, 0.334]
+motif5 no-plasticity: acc mean=0.160 range=[0.040,0.295] chance=0.250 mean_burst=0.013 accs=[0.04, 0.097, 0.295, 0.269, 0.098]

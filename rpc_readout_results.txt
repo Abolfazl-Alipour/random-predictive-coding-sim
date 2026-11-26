@@ -1,0 +1,3 @@
+planted alpha1.0 readout coactivity-full: ridge mean=0.157 range=[0.131,0.179] proto mean=0.072 chance=0.062 ridge=[0.133, 0.17, 0.179, 0.131, 0.171]
+planted alpha1.0 readout burst-full: ridge mean=0.152 range=[0.130,0.169] proto mean=0.073 chance=0.062 ridge=[0.13, 0.157, 0.169, 0.141, 0.162]
+planted alpha1.0 readout no-plasticity: ridge mean=0.163 range=[0.150,0.182] proto mean=0.064 chance=0.062 ridge=[0.157, 0.159, 0.166, 0.15, 0.182]

@@ -1,0 +1,6 @@
+planted alpha1.0 full: acc mean=0.073 range=[0.048,0.090] chance=0.062 mean_burst=0.151 accs=[0.087, 0.09, 0.07, 0.07, 0.048]
+planted alpha1.0 no-plasticity: acc mean=0.064 range=[0.055,0.067] chance=0.062 mean_burst=0.025 accs=[0.055, 0.066, 0.067, 0.064, 0.066]
+planted alpha1.0 no-confirmation: acc mean=0.072 range=[0.055,0.089] chance=0.062 mean_burst=0.151 accs=[0.089, 0.083, 0.075, 0.061, 0.055]
+planted alpha0.7 full: acc mean=0.077 range=[0.057,0.088] chance=0.062 mean_burst=0.147 accs=[0.079, 0.088, 0.077, 0.081, 0.057]
+planted alpha0.7 no-plasticity: acc mean=0.060 range=[0.053,0.065] chance=0.062 mean_burst=0.025 accs=[0.064, 0.053, 0.065, 0.061, 0.055]
+planted alpha0.7 no-confirmation: acc mean=0.073 range=[0.049,0.090] chance=0.062 mean_burst=0.149 accs=[0.09, 0.085, 0.086, 0.049, 0.057]

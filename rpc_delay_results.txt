@@ -1,0 +1,2 @@
+planted alpha1.0 delay-full: acc mean=0.066 range=[0.042,0.083] chance=0.062 mean_burst=0.152 accs=[0.083, 0.082, 0.077, 0.042, 0.044]
+planted alpha1.0 delay-no-plasticity: acc mean=0.059 range=[0.055,0.063] chance=0.062 mean_burst=0.026 accs=[0.055, 0.062, 0.06, 0.056, 0.063]

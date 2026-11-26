@@ -1,0 +1,2 @@
+cycle diag plasticity=True: acc=0.126 correct_cos=0.343 wrong_cos=0.418
+cycle diag plasticity=False: acc=0.121 correct_cos=0.089 wrong_cos=0.179

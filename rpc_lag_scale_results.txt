@@ -1,0 +1,1 @@
+lag5 scale500x10 proto200 full: acc mean=0.079 range=[0.037,0.096] chance=0.062 mean_burst=0.144 accs=[0.086, 0.083, 0.096, 0.091, 0.037]

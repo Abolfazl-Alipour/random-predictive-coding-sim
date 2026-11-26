@@ -1,0 +1,6 @@
+motif alpha1.0 full: acc mean=0.934 range=[0.668,1.000] chance=0.250 mean_burst=0.097 accs=[0.668, 1.0, 1.0, 1.0, 1.0]
+motif alpha1.0 no-plasticity: acc mean=0.322 range=[0.037,0.600] chance=0.250 mean_burst=0.025 accs=[0.322, 0.037, 0.6, 0.335, 0.316]
+motif alpha1.0 no-confirmation: acc mean=0.846 range=[0.623,0.997] chance=0.250 mean_burst=0.103 accs=[0.623, 0.997, 0.662, 0.961, 0.985]
+sine-fixed alpha1.0 full: acc mean=0.091 range=[0.038,0.139] chance=0.031 mean_burst=0.118 accs=[0.076, 0.038, 0.139, 0.077, 0.125]
+sine-fixed alpha1.0 no-plasticity: acc mean=0.022 range=[0.012,0.028] chance=0.031 mean_burst=0.024 accs=[0.027, 0.027, 0.012, 0.028, 0.018]
+sine-fixed alpha1.0 no-confirmation: acc mean=0.062 range=[0.030,0.087] chance=0.031 mean_burst=0.131 accs=[0.087, 0.03, 0.082, 0.046, 0.067]

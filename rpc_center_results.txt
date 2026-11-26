@@ -1,0 +1,4 @@
+cycle centered full: acc mean=0.131 range=[0.124,0.145] chance=0.125 mean_burst=0.089 accs=[0.125, 0.145, 0.124]
+cycle centered no-plasticity: acc mean=0.126 range=[0.122,0.132] chance=0.125 mean_burst=0.027 accs=[0.126, 0.122, 0.132]
+motif centered full: acc mean=0.222 range=[0.000,0.334] chance=0.250 mean_burst=0.070 accs=[0.0, 0.334, 0.332]
+motif centered no-plasticity: acc mean=0.000 range=[0.000,0.000] chance=0.250 mean_burst=0.016 accs=[0.0, 0.0, 0.0]

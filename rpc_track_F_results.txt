@@ -1,0 +1,2 @@
+trackF full: acc mean=0.084 range=[0.029,0.124] chance=0.031 mean_burst=0.109 accs=[0.092, 0.062, 0.114, 0.029, 0.124]
+trackF no-plasticity: acc mean=0.068 range=[0.002,0.146] chance=0.031 mean_burst=0.026 accs=[0.087, 0.06, 0.146, 0.002, 0.044]

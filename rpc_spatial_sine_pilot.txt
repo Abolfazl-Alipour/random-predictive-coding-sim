@@ -1,0 +1,3 @@
+sine full: acc mean=0.101 range=[0.101,0.101] chance=0.031 mean_burst=0.156 accs=[0.101]
+sine no-plasticity: acc mean=0.027 range=[0.027,0.027] chance=0.031 mean_burst=0.032 accs=[0.027]
+sine no-confirmation: acc mean=0.090 range=[0.090,0.090] chance=0.031 mean_burst=0.142 accs=[0.09]

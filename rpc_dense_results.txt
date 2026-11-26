@@ -1,0 +1,4 @@
+planted alpha1.0 coactivity full: acc mean=0.072 range=[0.051,0.083] chance=0.062 mean_burst=0.151 accs=[0.083, 0.082, 0.078, 0.066, 0.051]
+planted alpha1.0 coactivity no-plasticity: acc mean=0.064 range=[0.055,0.067] chance=0.062 mean_burst=0.025 accs=[0.055, 0.066, 0.067, 0.064, 0.066]
+planted alpha1.0 coactivity no-confirmation: acc mean=0.073 range=[0.051,0.090] chance=0.062 mean_burst=0.151 accs=[0.09, 0.083, 0.07, 0.07, 0.051]
+motif alpha1.0 coactivity full: acc mean=0.999 range=[0.994,1.000] chance=0.250 accs=[1.0, 1.0, 0.994, 1.0, 1.0]

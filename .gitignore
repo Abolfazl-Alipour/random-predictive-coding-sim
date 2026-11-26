@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+*.npz
+thesis.txt
+ch3.txt

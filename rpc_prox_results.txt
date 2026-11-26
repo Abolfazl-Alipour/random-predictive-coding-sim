@@ -1,0 +1,5 @@
+p2->token decode learn_prox=False: mean=0.711 range=[0.623,0.778] chance=0.062 accs=[0.721, 0.778, 0.739, 0.623, 0.695]
+p2->token decode learn_prox=True: mean=0.984 range=[0.975,0.993] chance=0.062 accs=[0.983, 0.985, 0.983, 0.975, 0.993] fit_resid_mse=0.0049
+planted alpha1.0 prox-full: acc mean=0.113 range=[0.053,0.177] chance=0.062 mean_burst=0.150 accs=[0.141, 0.087, 0.177, 0.108, 0.053]
+planted alpha1.0 prox-confirm-on: acc mean=0.076 range=[0.047,0.101] chance=0.062 mean_burst=0.151 accs=[0.101, 0.082, 0.09, 0.059, 0.047]
+planted alpha1.0 prox-no-plasticity: acc mean=0.067 range=[0.054,0.084] chance=0.062 mean_burst=0.023 accs=[0.084, 0.055, 0.083, 0.054, 0.058]

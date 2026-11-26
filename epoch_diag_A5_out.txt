@@ -1,0 +1,24 @@
+full
+  ep1: acc=0.071 burst=0.099 y2=0.722
+  ep2: acc=0.077 burst=0.112 y2=0.751
+  ep3: acc=0.077 burst=0.123 y2=0.795
+  ep4: acc=0.070 burst=0.123 y2=0.795
+  ep5: acc=0.070 burst=0.123 y2=0.795
+no-confirmation
+  ep1: acc=0.055 burst=0.109 y2=0.081
+  ep2: acc=0.078 burst=0.109 y2=0.081
+  ep3: acc=0.082 burst=0.109 y2=0.081
+  ep4: acc=0.082 burst=0.109 y2=0.081
+  ep5: acc=0.082 burst=0.109 y2=0.081
+full eta_c=0.01
+  ep1: acc=0.071 burst=0.102 y2=0.728
+  ep2: acc=0.070 burst=0.102 y2=0.736
+  ep3: acc=0.070 burst=0.104 y2=0.736
+  ep4: acc=0.070 burst=0.104 y2=0.736
+  ep5: acc=0.070 burst=0.104 y2=0.736
+full eta_c=0.2
+  ep1: acc=0.072 burst=0.110 y2=0.746
+  ep2: acc=0.072 burst=0.123 y2=0.761
+  ep3: acc=0.072 burst=0.123 y2=0.761
+  ep4: acc=0.072 burst=0.123 y2=0.761
+  ep5: acc=0.072 burst=0.123 y2=0.761
