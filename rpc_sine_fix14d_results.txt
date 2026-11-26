@@ -1,0 +1,3 @@
+sine-fixed A24 coact-nout256: acc mean=0.024 range=[0.013,0.038] chance=0.031 mean_burst=0.152 mean_y2=0.397 accs=[0.013, 0.023, 0.028, 0.038, 0.018]
+sine-fixed A24 burst-nout256: acc mean=0.028 range=[0.023,0.035] chance=0.031 mean_burst=0.110 mean_y2=0.397 accs=[0.025, 0.035, 0.028, 0.029, 0.023]
+sine-fixed A24 cov-nout256: acc mean=0.151 range=[0.062,0.287] chance=0.031 mean_burst=0.148 mean_y2=0.397 accs=[0.114, 0.173, 0.12, 0.062, 0.287]

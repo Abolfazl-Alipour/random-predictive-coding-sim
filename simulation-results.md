@@ -1999,3 +1999,81 @@ Sine-fixed, full graded code (A18), 5 seeds, 5 epochs, chance 0.031:
 - A18-driveproto no-plasticity: 0.447 (range 0.363-0.525, accs 0.363, 0.525, 0.458, 0.380, 0.509).
 
 Verdict: A23 does NOT rescue the full code. It raises the trained score (0.105 -> 0.185) and removes the bimodal collapse (all five seeds now 0.168-0.230, no seed at chance), which is the first time any change has un-collapsed seeds 2-4. But the frozen control rises further (0.023 -> 0.447), so learning is still a net loss of -0.262, worse than top-6 (-0.163). The sine A23 diagnostic is now complete: top-6 and full code both fail the trained-vs-control test. The pattern is consistent: drive prototypes are a strong frozen-reservoir classifier, and training under the unsigned Hebbian rule makes the drive worse than frozen. Planted A23 (driver rpc_planted_fix14a.py) is running now; the delta rule follows.
+
+### 42.4 A23 on planted motifs: top-6 (driver rpc_planted_fix14a.py, DONE Nov 26, 09:13 PST)
+
+Planted motifs, top-6, 5 seeds, 5 epochs, chance 0.0625, coactivity, confirmation off, eta_b 0.05, alpha 1.0, one-hot:
+- top6-p1proto full: 0.074 (range 0.050-0.090, accs 0.083, 0.083, 0.090, 0.063, 0.050), control 0.054, gain +0.020.
+- top6-p1proto no-plasticity: 0.054.
+- top6-driveproto full: 0.132 (range 0.115-0.151, accs 0.151, 0.115, 0.144, 0.126, 0.125), control 0.129, gain +0.003.
+- top6-driveproto no-plasticity: 0.129.
+
+Verdict: A23 does NOT rescue planted motifs either. Trained 0.132 vs frozen 0.129: learning is flat, and both sit far below the 0.22 bar. Unlike sine, the frozen drive-proto control is NOT strong on planted (0.129 vs sine 0.444): the frozen reservoir's drive prototypes do not classify planted motifs well. Note the p1-proto 0.074 is below the A12-alone 0.113 (section 23) because this driver omits learn_prox by design (its docstring: "matching the A12-alone config minus learn_prox"); the gap is a learn_prox contribution (+0.039), not an A23 effect. The A23 diagnostic is now COMPLETE: sine top-6, sine A18, planted top-6. All three fail the trained-vs-control test. The chain has moved to the delta rule (driver rpc_sine_fix14c.py).
+
+## 43. Round 14 (continued): A24 delta rule (AGY spec)
+
+Delta rule (learn_rule="delta"): W_dist1 += eta_d / (||y2_prev||^2 + 1) * outer(p1 - d1, y2_prev), norm_rows off, use_confirmation off, s_inh 0.0, full_code on, p1-prototype cosine readout only. Controls on identical seeds: no-plasticity, coactivity, burst, centred covariance Hebbian ("cov"). Bars: sine accuracy at least 0.46 and gain at least +0.40; planted at least 0.22 and gain at least +0.15, plus motif-only accuracy at least 0.75. (Part results recorded as they land; the chain is still running.)
+
+### 43.1 Sine-fixed, delta at n_out 64 (driver rpc_sine_fix14c.py, DONE Nov 26, 09:13 PST)
+
+Sine-fixed, smooth 3.0, alpha 0.7, eta_d 0.2, 5 seeds, 5 epochs, chance 0.031:
+- delta-nout64 full: 0.407 (range 0.336-0.510, accs 0.336, 0.510, 0.453, 0.375, 0.362), mean_y2 0.399.
+
+First time any theory-faithful configuration scores above 0.40 on fixed sine: nearly double the old best (0.218) and far above the 0.231 bar, but still short of Markov-1 (0.459) and of AGY's 0.46 bar. The gain vs the no-plasticity control is not known yet (control still running in this driver). Delta-nout256, the no-plasticity control, and the ridge probe on the delta-256 drive follow.
+
+### 43.2 Sine-fixed, delta at n_out 256 + control (driver rpc_sine_fix14c.py, DONE Nov 26, 09:28 PST)
+
+Sine-fixed, smooth 3.0, alpha 0.7, eta_d 0.2, 5 seeds, 5 epochs, chance 0.031:
+- delta-nout256 full: 0.484 (range 0.348-0.629, accs 0.348, 0.629, 0.537, 0.383, 0.525), mean_y2 0.397.
+- delta256-no-plasticity: 0.031 (range 0.015-0.075, accs 0.032, 0.016, 0.015, 0.017, 0.075), mean_y2 0.397. The frozen control sits at chance.
+- Gain: +0.453.
+
+BOTH AGY BARS PASS on sine-fixed at n_out 256: accuracy 0.484 >= 0.46, gain +0.453 >= +0.40. This is the first theory-faithful configuration to beat Markov-1 (0.459) on fixed sine, and the first to beat the 0.46 bar. The frozen control at chance (0.031) means the gain is genuine learning, not reservoir readout: the same frozen reservoir scores 0.031 here, against 0.444 with drive prototypes under the old rule. Width matters: n_out 64 gives 0.407, n_out 256 gives 0.484. The ridge probe on the delta-256 drive crashed on a constructor bug (proto_n, then use_confirmation, both step/run parameters passed to RPCNetwork.__init__ by mistake); the probe was fixed and resumed with the sine controls and the planted drivers (session proc_22370417f155).
+
+### 43.3 Ridge probe on the delta-256 drive (driver rpc_sine_fix14c_probe.py, DONE Nov 26, 10:13 PST)
+
+Next-token ridge decode from d1, held-out test (test seed+1000, proto_n=50, same data as run_task), 3 seeds:
+- trained: 0.913 (range 0.884-0.942, accs 0.884, 0.942, 0.912).
+- frozen: 0.917 (range 0.890-0.940, accs 0.890, 0.940, 0.923).
+
+The frozen drive already decodes the next token at 0.917. Delta training adds NO information to the drive (0.913 vs 0.917, identical). The network-score gap (delta trained 0.484 vs frozen 0.031) is therefore entirely a READOUT-ALIGNMENT effect: the delta rule rotates d1 into the p1-prototype space so the fixed cosine readout can use what is already there, while the frozen drive holds the same information in a form the cosine readout cannot use. This is the clean mechanism the hunt was missing: the unsigned Hebbian rule rotated the drive AWAY from the readout space (positive-orthant collapse); the signed error rule rotates it INTO the readout space. It also reframes the ridge result: a trained readout at 0.556-0.673 was never evidence of learning, because the frozen drive already decodes at 0.917.
+
+### 43.4 Sine-fixed, rule controls at n_out 256 (driver rpc_sine_fix14d.py, DONE Nov 26, 10:13 PST)
+
+Same base settings as the delta cell (norm_rows=False, s_inh=0.0, full_code, smooth 3.0, alpha 0.7), only the rule changes, 5 seeds, 5 epochs, chance 0.031:
+- coact-nout256: 0.024 (range 0.013-0.038, accs 0.013, 0.023, 0.028, 0.038, 0.018), mean_burst 0.152.
+- burst-nout256: 0.028 (range 0.023-0.035, accs 0.025, 0.035, 0.028, 0.029, 0.023), mean_burst 0.110.
+- cov-nout256: 0.151 (range 0.062-0.287, accs 0.114, 0.173, 0.120, 0.062, 0.287), mean_burst 0.148.
+
+The 2x2 factorial is clean at n_out 256: unsigned rules collapse to chance without row-norm preservation (coactivity 0.024, burst 0.028, against delta 0.484); centering alone (cov) recovers partway to 0.151 but is far below delta. The error term is what matters, not centering and not width alone: width without the error term gives 0.024-0.028, and the error term at width 64 gives 0.407. Planted delta drivers crashed on a duplicate-alpha bug (run_planted_motif called with alpha both positionally and in DELTA); fixed in both planted drivers and relaunched (session proc_a0045fd41a7e).
+
+### 43.5 Planted motifs, delta rule (driver rpc_planted_fix14c.py, DONE Nov 26, 10:31 PST)
+
+Planted motifs, alpha 1.0, one-hot, eta_d 0.05, full_code, norm_rows off, confirmation off, s_inh 0.0, 5 seeds, 5 epochs, chance 0.0625, motif_n 124:
+- delta-nout64: acc 0.151 (range 0.123-0.170, accs 0.123, 0.159, 0.170, 0.138, 0.167), motif_acc 0.641 (range 0.533-0.813, maccs 0.555, 0.813, 0.700, 0.533, 0.606).
+- delta-nout256: acc 0.221 (range 0.197-0.247, accs 0.197, 0.230, 0.247, 0.205, 0.227), motif_acc 0.966 (range 0.921-1.000, maccs 0.966, 1.000, 0.977, 0.967, 0.921).
+- delta256-no-plasticity: acc 0.062 (range 0.052-0.069), motif_acc 0.054 (range 0.000-0.092). Frozen control at chance.
+- Gain: +0.159.
+
+AGY's planted bars: accuracy >= 0.22 PASS (0.221, by 0.001), gain >= +0.15 PASS (+0.159, by 0.009), motif-only >= 0.75 PASS (0.966, comfortably). The accuracy and gain passes are marginal: one seed lower and the mean would fall below the bar. The original strict bar 0.2625 is NOT met (0.221 < 0.2625), and the 1-step Bayes ceiling is 0.287, so delta reaches 77% of optimal on planted. The motif-only score is the strong result: on the motif steps themselves the network predicts the successor 96.6% of the time, against 5.4% frozen. The overall accuracy is held down by the filler steps, where the cue gives no information. Width matters again: 64 -> 0.151, 256 -> 0.221.
+
+### 43.6 Planted motifs, rule controls at n_out 256 (driver rpc_planted_fix14d.py, DONE Nov 26, 10:31 PST)
+
+Same base settings as the delta cell, only the rule changes, 5 seeds, 5 epochs, chance 0.0625:
+- coact-nout256: acc 0.059 (range 0.040-0.075, accs 0.040, 0.075, 0.041, 0.070, 0.070), motif_acc 0.059 (maccs 0.000, 0.000, 0.000, 0.295, 0.000).
+- burst-nout256: acc 0.059, motif_acc 0.059, per-seed accs and maccs IDENTICAL to coactivity on all five seeds.
+- cov-nout256: acc 0.154 (range 0.114-0.202, accs 0.114, 0.202, 0.154, 0.134, 0.164), motif_acc 0.645 (range 0.487-0.992, maccs 0.487, 0.992, 0.669, 0.500, 0.575).
+
+The driver passes distinct learn_rule values (verified by reading rpc_planted_fix14d.py), so the identical coactivity/burst scores are a real result, not a copy-paste bug: both unsigned rules collapse to the same constant prediction at this width (drive saturates at the clamp, cosine locks onto one bin), so the per-seed scores are just that bin's frequency in each test draw. Same pattern as sine: unsigned rules at chance, centering alone partway (0.154, motif 0.645), error term far above (0.221, motif 0.966).
+
+### 43.7 Round 14 verdict
+
+Round 14 is complete. A23 (drive prototypes) fails its diagnostic on all three versions: the frozen reservoir with drive prototypes beats or matches the trained network (sine top-6 -0.163, sine A18 -0.262, planted +0.003). Thesis-claim version (a), all wires fixed random with a fixed readout, is dead; its last reasonable test is the A23 diagnostic, and it fails it.
+
+A24 (local signed prediction-error rule, delta) works on both tasks at n_out 256, with the unmodified p1-prototype cosine readout and all other wires fixed random:
+- Sine-fixed: 0.484 vs frozen 0.031, gain +0.453. Passes AGY's bars (0.46, +0.40) and beats Markov-1 (0.459).
+- Planted: 0.221 vs frozen 0.062, gain +0.159, motif-only 0.966. Passes AGY's bars (0.22, +0.15, 0.75), marginally on accuracy and gain; fails the strict 0.2625 bar.
+- Mechanism (probe, 43.3): the frozen drive already decodes the next token at 0.917; delta training adds no information (0.913). The win is readout alignment: the signed error rule rotates d1 into the prototype space; the unsigned rule rotated it out.
+- Controls (43.4, 43.6): unsigned rules collapse to chance at n_out 256 without row-norm preservation; centering alone recovers partway (sine 0.151, planted 0.154); only the error term reaches the bars.
+
+What is still open: (1) planted accuracy is marginal against AGY's bar and below the strict bar; (2) variable sine, Lorenz, and the 1D track have not been run under delta; (3) alpha 1.0 and smooth sigma 3.0 were selected on the test set (third critique), so the delta win needs a validation split and more seeds before it is claimed (round 15 design: 20 seeds, train/validation/test split, random fixed W_dist1 control, label-shuffled readout); (4) the theory as written in Chapter 3 still has no error population, hierarchy, precision weighting, or omission test, so the delta result rescues this formalisation, not the Chapter 3 theory as stated.

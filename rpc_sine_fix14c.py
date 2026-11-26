@@ -36,14 +36,17 @@ def probe_delta(seed, plasticity, epochs=5):
     np.random.seed(seed)
     train = make_sine_fixed(50, seed=seed)
     test = make_sine_fixed(20, seed=seed + 1000)
-    net = RPCNetwork(K=32, n_out=256, proto_n=50, **DELTA)
+    net = RPCNetwork(K=32, n_out=256,
+                     **{k: v for k, v in DELTA.items()
+                        if k != "use_confirmation"})
     net.calibrate(train)
     net.build_prototypes(train, proto_n=50)
     for _ in range(epochs):
         for seq in train:
             net.reset()
             for tok in seq:
-                net.step(tok, train=True, plasticity=plasticity)
+                net.step(tok, train=True, plasticity=plasticity,
+                         use_confirmation=False)
     def collect(data):
         F, toks = [], []
         for seq in data:

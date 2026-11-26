@@ -1,0 +1,4 @@
+planted A23 top6-p1proto full: acc mean=0.074 range=[0.050,0.090] chance=0.0625 mean_burst=0.151 accs=[0.083, 0.083, 0.09, 0.063, 0.05]
+planted A23 top6-p1proto no-plasticity: acc mean=0.054 range=[0.040,0.065] chance=0.0625 mean_burst=0.025 accs=[0.057, 0.065, 0.052, 0.04, 0.056]
+planted A23 top6-driveproto full: acc mean=0.132 range=[0.115,0.151] chance=0.0625 mean_burst=0.151 accs=[0.151, 0.115, 0.144, 0.126, 0.125]
+planted A23 top6-driveproto no-plasticity: acc mean=0.129 range=[0.119,0.137] chance=0.0625 mean_burst=0.025 accs=[0.137, 0.134, 0.128, 0.119, 0.127]

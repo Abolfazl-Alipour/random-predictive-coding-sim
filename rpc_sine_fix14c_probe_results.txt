@@ -1,0 +1,2 @@
+probe delta256 d1 next-token trained: mean=0.913 range=[0.884,0.942] accs=[0.884, 0.942, 0.912]
+probe delta256 d1 next-token frozen: mean=0.917 range=[0.890,0.940] accs=[0.89, 0.94, 0.923]

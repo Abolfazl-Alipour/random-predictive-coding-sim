@@ -28,7 +28,7 @@ if __name__ == "__main__":
     ]:
         accs, maccs = [], []
         for seed in range(5):
-            r = run_planted_motif(seed, 1.0, **BASE, **extra)
+            r = run_planted_motif(seed, **BASE, **extra)
             accs.append(r["acc"])
             maccs.append(r["motif_acc"])
         print(f"planted A24 {name}: acc mean={np.mean(accs):.3f} "

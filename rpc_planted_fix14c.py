@@ -77,7 +77,7 @@ if __name__ == "__main__":
     ]:
         accs, maccs, bursts = [], [], []
         for seed in range(5):
-            r = run_planted_motif(seed, 1.0, **DELTA, **extra)
+            r = run_planted_motif(seed, **DELTA, **extra)
             accs.append(r["acc"])
             maccs.append(r["motif_acc"])
             bursts.append(r["motif_n"])

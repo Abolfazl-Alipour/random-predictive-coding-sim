@@ -1,0 +1,11 @@
+sine-fixed A24 delta-nout64: acc mean=0.407 range=[0.336,0.510] chance=0.031 mean_burst=0.000 mean_y2=0.399 accs=[0.336, 0.51, 0.453, 0.375, 0.362]
+sine-fixed A24 delta-nout256: acc mean=0.484 range=[0.348,0.629] chance=0.031 mean_burst=0.000 mean_y2=0.397 accs=[0.348, 0.629, 0.537, 0.383, 0.525]
+sine-fixed A24 delta256-no-plasticity: acc mean=0.031 range=[0.015,0.075] chance=0.031 mean_burst=0.024 mean_y2=0.397 accs=[0.032, 0.016, 0.015, 0.017, 0.075]
+Traceback (most recent call last):
+  File "/home/hatch/workspace/thesis-rpc/rpc_sine_fix14c.py", line 81, in <module>
+    ds = [probe_delta(s, plast) for s in range(3)]
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/thesis-rpc/rpc_sine_fix14c.py", line 39, in probe_delta
+    net = RPCNetwork(K=32, n_out=256, proto_n=50, **DELTA)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: RPCNetwork.__init__() got an unexpected keyword argument 'proto_n'

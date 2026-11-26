@@ -17,25 +17,32 @@ Hebbian learning.
 2. The model learns noiseless deterministic token sequences:
    repeating cycle 0.843 and pure motif 0.934 at reservoir leak
    rate 1.0 (5 seeds, held-out test).
-3. It fails in noise and on continuous signals: planted motifs
-   0.113 at best (learned proximal projection), fixed sine 0.218
-   at best (nearest-neighbour readout), variable sine 0.108,
-   Lorenz 0.093, 1D track 0.098. Every fix tried so far moves the
-   number by 0.01 to 0.03 except the smooth input, and none
-   passes the bar.
-4. The bottleneck is the code and the learning pulling in
-   opposite directions. The module-1 reservoir holds the
-   current token perfectly (linear probe 1.000), but the
-   module-2 code the distal drive reads identifies the
-   previous token only 36% of the time with the top-6 code.
-   The full graded code carries more (token decode 0.709
-   against 0.516), but each Hebbian update then spreads
-   across about 32 active columns instead of 6, so the
-   learned distal drive carries less (0.457 against 0.509).
-   The code wants richness; the learning wants concentration.
-   A trained ridge readout on the same distal drive scores
-   0.556 to 0.673 on the fixed sine, so the information is in
-   the drive and the prototype readout cannot extract it.
+3. It fails in noise and on continuous signals under the
+   unsigned Hebbian rule: planted motifs 0.113 at best
+   (learned proximal projection), fixed sine 0.218 at best
+   (nearest-neighbour readout), variable sine 0.108,
+   Lorenz 0.093, 1D track 0.098. Every fix tried so far
+   moves the number by 0.01 to 0.03 except the smooth input,
+   and none passes the bar. Under the signed delta rule
+   (round 14, section 43) the same model learns in noise:
+   fixed sine 0.484 and planted motifs 0.221 with motif-only
+   0.966, both passing AGY's bars. The unsigned rule was the
+   binding failure, not the code or the readout.
+4. The bottleneck under the unsigned rule is the learning
+   rule itself. The module-1 reservoir holds the current
+   token perfectly (linear probe 1.000), and the frozen
+   distal drive already decodes the next token at 0.917
+   (ridge probe, section 43.3). The unsigned Hebbian update
+   is all positive, so the distal map drifts into a positive
+   corner and the drive becomes nearly identical on every
+   step; the fixed prototype readout then cannot use what
+   the drive holds. The signed delta rule rotates the drive
+   into the prototype space (trained ridge 0.913, unchanged)
+   and the same readout scores 0.484. A trained ridge readout
+   on the same distal drive scores 0.556 to 0.673 on the
+   fixed sine under the old rule, so the information was in
+   the drive all along and the prototype readout could not
+   extract it until the drive was aligned.
 
 ## Key numbers
 
@@ -214,10 +221,27 @@ story in the sections above is wrong in specific places.
    network (ridge 0.556 vs prototype 0.078). The ridge on
    the best smooth network was never measured.
 
-Round 14 running (Reza, Nov 26 08:36): A23 diagnostic first
-(sine top-6 DONE: 0.281 trained vs 0.444 frozen; A18 sine and
-planted top-6 pending), then the A24 delta rule (sine +
-planted, delta/cov/coact/burst x n_out 64/256, 5 seeds,
-5 epochs). Bars: sine >= 0.46 and gain >= +0.40; planted
->= 0.22 and gain >= +0.15, motif-only >= 0.75. Record as
-section 43 when the chain finishes.
+Round 14 DONE Nov 26, 10:31 PST (record section 43). A23
+diagnostic: all three versions fail trained-vs-control (sine
+top-6 0.281 vs frozen 0.444; sine A18 0.185 vs frozen 0.447;
+planted top-6 0.132 vs frozen 0.129, flat). Thesis-claim
+version (a), all wires fixed random with a fixed readout, is
+dead. A24 delta rule, n_out 256, unmodified p1-prototype
+cosine readout, all other wires fixed random: sine-fixed
+0.484 vs frozen 0.031, gain +0.453, BOTH AGY bars pass
+(0.46, +0.40), first theory-faithful config to beat Markov-1
+(0.459); planted 0.221 vs frozen 0.062, gain +0.159,
+motif-only 0.966, all three AGY bars pass (0.22, +0.15,
+0.75), marginally on accuracy and gain; strict bar 0.2625
+NOT met. Mechanism (ridge probe): trained drive decodes
+next token at 0.913 vs frozen 0.917, so delta adds no
+information; the win is readout alignment. Controls:
+coactivity and burst collapse to chance at n_out 256
+(sine 0.024/0.028, planted 0.059/0.059, identical per-seed
+on planted, a shared constant-prediction collapse);
+centring alone recovers partway (sine 0.151, planted
+0.154). Only the error term reaches the bars. Open:
+planted accuracy marginal; variable sine, Lorenz, and the
+1D track untested under delta; alpha 1.0 and smooth 3.0
+were selected on the test set, so round 15 needs a
+validation split and 20 seeds before the win is claimed.
