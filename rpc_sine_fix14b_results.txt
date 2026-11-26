@@ -1,0 +1,4 @@
+sine-fixed A23 A18-p1proto full: acc mean=0.105 range=[0.028,0.218] chance=0.031 mean_burst=0.144 accs=[0.213, 0.218, 0.028, 0.037, 0.028]
+sine-fixed A23 A18-p1proto no-plasticity: acc mean=0.023 range=[0.012,0.041] chance=0.031 mean_burst=0.019 accs=[0.031, 0.012, 0.016, 0.016, 0.041]
+sine-fixed A23 A18-driveproto full: acc mean=0.185 range=[0.168,0.230] chance=0.031 mean_burst=0.144 accs=[0.23, 0.186, 0.168, 0.168, 0.172]
+sine-fixed A23 A18-driveproto no-plasticity: acc mean=0.447 range=[0.363,0.525] chance=0.031 mean_burst=0.019 accs=[0.363, 0.525, 0.458, 0.38, 0.509]

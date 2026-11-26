@@ -1,0 +1,7 @@
+planted A18+coact full: acc mean=0.075 range=[0.053,0.085] chance=0.0625 mean_burst=0.153 accs=[0.081, 0.083, 0.085, 0.071, 0.053]
+planted A18+coact no-plasticity: acc mean=0.060 range=[0.051,0.067] chance=0.0625 mean_burst=0.025 accs=[0.058, 0.067, 0.064, 0.051, 0.061]
+planted A12+knn+coact full: acc mean=0.075 range=[0.052,0.084] chance=0.0625 mean_burst=0.151 accs=[0.079, 0.081, 0.078, 0.084, 0.052]
+planted A12+knn+coact no-plasticity: acc mean=0.070 range=[0.056,0.089] chance=0.0625 mean_burst=0.023 accs=[0.089, 0.063, 0.085, 0.056, 0.056]
+planted A18+proj full: acc mean=0.065 range=[0.042,0.083] chance=0.0625 mean_burst=0.150 accs=[0.08, 0.083, 0.042, 0.071, 0.046]
+planted A18+proj no-plasticity: acc mean=0.060 range=[0.051,0.067] chance=0.0625 mean_burst=0.025 accs=[0.058, 0.067, 0.064, 0.051, 0.061]
+EXIT_PLANTED=0

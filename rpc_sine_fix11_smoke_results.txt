@@ -1,0 +1,5 @@
+A18+sharp2: acc=0.204 burst=0.161 y2=0.426
+A18+sharp3: acc=0.179 burst=0.161 y2=0.426
+A12+knn: acc=0.195 burst=0.133 y2=0.094
+A18+A19+sharp2: acc=0.274 burst=0.161 y2=0.426
+EXIT=0

@@ -1,0 +1,8 @@
+sine-fixed A18+burst full: acc mean=0.022 range=[0.017,0.037] chance=0.031 mean_burst=0.101 mean_y2=0.406 accs=[0.018, 0.037, 0.02, 0.017, 0.018]
+sine-fixed A18+burst no-plasticity: acc mean=0.023 range=[0.012,0.041] chance=0.031 mean_burst=0.019 mean_y2=0.399 accs=[0.031, 0.012, 0.016, 0.016, 0.041]
+sine-fixed A18+proj full: acc mean=0.105 range=[0.028,0.218] chance=0.031 mean_burst=0.144 mean_y2=0.394 accs=[0.213, 0.218, 0.028, 0.037, 0.028]
+sine-fixed A18+proj no-plasticity: acc mean=0.023 range=[0.012,0.041] chance=0.031 mean_burst=0.019 mean_y2=0.399 accs=[0.031, 0.012, 0.016, 0.016, 0.041]
+sine-fixed A18+burst+proj full: acc mean=0.022 range=[0.017,0.037] chance=0.031 mean_burst=0.101 mean_y2=0.406 accs=[0.018, 0.037, 0.02, 0.017, 0.018]
+sine-fixed A18+burst+proj no-plasticity: acc mean=0.023 range=[0.012,0.041] chance=0.031 mean_burst=0.019 mean_y2=0.399 accs=[0.031, 0.012, 0.016, 0.016, 0.041]
+probe next-token from d1, A18+burst: mean=0.462 per-seed=[0.546, 0.488, 0.543, 0.348, 0.387]
+EXIT_SINE_B=0

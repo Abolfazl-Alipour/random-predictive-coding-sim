@@ -1,0 +1,7 @@
+sine readout full: ridge mean=0.244 range=[0.235,0.256] proto mean=0.099 chance=0.031 ridge=[0.241, 0.256, 0.235] proto=[0.082, 0.176, 0.039]
+sine readout no-plasticity: ridge mean=0.234 range=[0.228,0.246] proto mean=0.039 chance=0.031 ridge=[0.228, 0.246, 0.229] proto=[0.052, 0.042, 0.024]
+lorenz readout full: ridge mean=0.251 range=[0.195,0.325] proto mean=0.088 chance=0.031 ridge=[0.325, 0.195, 0.233] proto=[0.088, 0.066, 0.109]
+lorenz readout no-plasticity: ridge mean=0.295 range=[0.264,0.340] proto mean=0.036 chance=0.031 ridge=[0.34, 0.28, 0.264] proto=[0.033, 0.026, 0.047]
+lorenz readout full: ridge mean=0.251 range=[0.195,0.325] proto mean=0.088 chance=0.031 ridge=[0.325, 0.195, 0.233] proto=[0.088, 0.066, 0.109]
+lorenz readout no-plasticity: ridge mean=0.295 range=[0.264,0.340] proto mean=0.036 chance=0.031 ridge=[0.34, 0.28, 0.264] proto=[0.033, 0.026, 0.047]
+EXIT=0

@@ -229,6 +229,196 @@ ASSUMPTION A17 (dot-product readout, Nov 26): the last untested
   differ across tokens. The diagnostic is the spread of the
   prototype norms: if they are nearly equal, this test is vacuous
   and the readout is not the lever.
+ASSUMPTION A18 (full graded code, Nov 26): Reza's correction.
+  The top-6 code (A6) is my assumption, not the thesis: the
+  thesis has module 2 project back to module 1, and nothing in
+  it says only 6 of 64 cells fire. With full_code=True,
+  _y2_from_p2n returns the full graded proximal drive: every
+  cell with a positive drive projects back, in proportion to
+  its drive, and no rank cutoff is applied. The code is
+  standardised per step, relu((p2n - mean) / std): the mean
+  and spread are taken across the 64 units on that step, so
+  the code is invariant to the overall scale of p2. That
+  standardisation is load-bearing, not cosmetic: the naive
+  relu(p2n) scores 0.013, below chance, because p2 grows
+  about 15x in scale during training while sd_p2 is frozen
+  from calibration, so the unnormalised code blows up to a
+  mean of 6.09 (frozen: 0.41). The top-6 code hid this drift
+  because rank is scale-invariant; the graded code exposes
+  it. Per-step standardisation is divisive normalisation
+  applied to the code, the same mechanism Reza pointed at
+  for noise handling in circuits. The distal drive becomes a
+  weighted sum of all 64 rows of W_dist1 instead of a sum of
+  6, and the Hebbian pre-term (y2_prev in the W_dist1 update)
+  becomes graded instead of binary, so every active cell
+  teaches in proportion to its activity. The burst, the
+  confirmation rule, and the inhibition are unchanged: the
+  burst still marks a confirmed prediction, only the code it
+  rides on is now graded and dense. Calibration passes 2 and
+  3 call _y2_from_p2n, so sd_d1 and sd_d2 are re-measured
+  with the graded code. The diagnostic is the code's token
+  decode: if the full code still decodes near 0.33, the code
+  is not the lever and the loss sits in the random projection
+  itself.
+ASSUMPTION A19 (nearest-neighbour readout, Nov 26): Reza's
+  correction. The prototype readout is my assumption, not the
+  theory: it matches the distal drive against ONE mean vector
+  per token, and averaging smears the rising and falling
+  variants of a token into a single prototype that matches
+  neither. Record correction: the prototypes are mean p1 (the
+  proximal drive), not mean d1; the readout already matches
+  distal against proximal, so what is untested is the averaging,
+  not the space. With knn_readout=True, build_prototypes also
+  stores every training example's p1 vector in a bank (up to
+  4000 vectors), and predict_from_distal returns the token of
+  the closest bank vector by cosine. No averaging, no single
+  prototype per token: each variant keeps its own stored
+  pattern. This subsumes split_proto (A15): the bank carries
+  direction info in the stored vectors, so split prototypes are
+  ignored when knn is on. Token tasks only; run_vec keeps the
+  prototype readout. The diagnostic is the kNN score against
+  the cosine-prototype score on the same network: if kNN beats
+  it, the averaging was the readout's flaw; if it ties, the
+  readout's flaw is the cosine or the argmax, not the averaging.
+ASSUMPTION A20 (sharpened learning pre-term, Nov 26): round
+  10's root cause. The full graded code (A18) is richer (y2
+  token decode 0.516 to 0.709) but the learned distal drive is
+  worse (d1 decode 0.509 to 0.457), because each Hebbian update
+  spreads across about 32 active columns instead of 6, so each
+  row's fixed mass (A5) is diluted about 5x per column. The
+  code wants richness; the learning wants concentration. With
+  pre_sharpen=p > 0, the W_dist1 (and W_dist1b) update uses
+  pre = y2_prev**p, renormalised to y2_prev's L2 norm, so the
+  update magnitude is unchanged and only the concentration
+  changes: the strongest cells teach more, the weak ones less.
+  The drive still reads the raw graded code; only the learning
+  pre-term is sharpened. On the binary top-6 code y2**p = y2,
+  so sharpening is a no-op there and it isolates the
+  interaction with A18. This is a local, non-gradient rule:
+  it is the burst's rich-get-richer logic applied to the
+  learning pre-term. p=2 and p=3 bracket the effect. The
+  diagnostic is the sine score and the d1 decode: if
+  sharpening restores the sine to about 0.20 and raises d1,
+  dilution was the cause; if it still collapses, the graded
+  code is dead for learning and sparsity is the learning code.
+  OUTCOME (section 38): sharpening changed nothing (sharp2
+  0.099, sharp3 0.110, both bimodal). The dilution explanation
+  is wrong as stated; the degradation sits in the read, not
+  the write.
+ASSUMPTION A21 (sharpened distal-drive read, Nov 26): round
+  11's correction. A20 sharpened the learning pre-term and
+  changed nothing, so the degradation must sit in the READ:
+  d1 = W_dist1 times y2_prev sums about 32 rows of the map,
+  and the extra weak rows add noise at read time, no matter
+  how the map was learned. With read_sharpen=p > 0,
+  _distal_drive uses y2r = y2_prev**p, renormalised to
+  y2_prev's L2 norm, so the drive magnitude is unchanged and
+  only the concentration changes: the strongest cells drive
+  the prediction, the weak ones contribute less. The learning
+  keeps the raw graded code as its pre-term, so read and write
+  are separated: rich write, concentrated read. All cells
+  still project back (no hard cutoff), so this keeps the
+  "all cells project back" order. On the binary top-6 code
+  y2**p = y2, so it is a no-op there. The diagnostic is the
+  sine score and the per-seed d1 decode of the NEXT token:
+  if sharpening the read restores the sine to about 0.20 and
+  the collapsed seeds' d1 decodes rise, the read was the
+  problem; if it still collapses, the map itself is degenerate
+  on those seeds and the write is the problem after all.
+  OUTCOME (section 39): sharpening the read changed nothing
+  (read2 0.119, read3 0.129, both bimodal). The per-seed probe
+  reframes the collapse: on seed 2 the drive contains the
+  next-token information (ridge 0.495) but the fixed-space
+  readout extracts none of it (network 0.035). The map does
+  not reliably land in the prototype space.
+ASSUMPTION A22 (prototype-span projection readout, Nov 26):
+  round 12's correction. The per-seed probe shows the learned
+  distal map does not reliably land in the prototype space: on
+  collapsed seeds the drive is linearly informative (ridge
+  decodes the next token at up to 0.495) but the fixed-space
+  readout extracts almost nothing (network 0.035), while on
+  working seeds it extracts about half. Both the cosine and
+  the kNN readout compare d1 against p1-space patterns, so
+  both fail the same way when d1 lands outside that space.
+  With proto_proj on, predict_from_distal first projects d1
+  onto the span of the prototypes (P = pinv(protos) @ protos,
+  computed in _finalize_prototypes from train data only, so
+  no test leakage), then compares as before. The projection
+  removes exactly the components orthogonal to every
+  prototype, which is the misaligned part. It uses no learned
+  weights beyond the prototypes themselves, so it is a
+  readout-space fix, not a trained readout. The diagnostic is
+  the per-seed extraction ratio (network score divided by the
+  ridge probe decode): if the projection rescues the collapsed
+  seeds' extraction to the working-seed level (about 0.55),
+  the misalignment was the problem; if the collapsed seeds
+  still extract nothing, the drive itself is misaligned in a
+  way a projection cannot fix.
+  OUTCOME (section 40): the projection is a MATHEMATICAL
+  no-op for the cosine readout (proven, not just measured):
+  (P d1).proto = d1.proto for every prototype in the span,
+  and cosine normalises the scale change. The orthogonal part
+  of d1 (31% of its energy) is exactly the information the
+  ridge probe sees but cosine cannot. A22 is dead for cosine
+  and dot.
+ASSUMPTION A23 (drive prototypes, Nov 26): round 13's
+  correction. A22 proved the cosine readout can only see the
+  components of d1 inside the prototype span, while the ridge
+  probe shows the next-token information lives largely in the
+  orthogonal complement (31% of d1's energy; seed 2 decodes
+  0.495 but scores 0.035). With drive_proto on, run()
+  rebuilds the prototypes AFTER training from the trained
+  network's own distal drive: the prototype for token k is
+  the mean d1 over train steps whose current token is k. The
+  readout then compares the current d1 against these drive
+  templates by cosine, so the comparison vectors live in
+  d1-space and the cosine can see the orthogonal part. This
+  is a nearest-centroid readout in drive space, using train
+  data only, with no trained weights (unlike the ridge, which
+  learns a full weight matrix). The training itself is
+  unchanged (it uses the p1 prototypes for the burst and the
+  graded confirmation); only the evaluation readout changes,
+  so the test is clean: same learned network, different
+  comparison vectors. If the drive-prototype readout rescues
+  the collapsed seeds, the bottleneck was the comparison
+  space, not the learning. If it scores the same as the p1
+  prototypes, the drive's orthogonal information is not
+  organised by token in a way a centroid can use.
+  Limitation: drive_proto is for the cosine path only; with
+  knn_readout on, the bank still holds p1 vectors (untested
+  combination).
+  CORRECTION (Nov 26, section 41): the "31% of d1's energy"
+  figure above was a norm/energy error (true orthogonal
+  energy 52.5%, chance level), and the collapsed seed has
+  MORE in-span energy than the working seed, so the
+  orthogonal-information story is dead. A23 is still worth
+  running as a diagnostic (Kimi), but AGY's 1-epoch check
+  shows it hands the frozen control 0.444 and makes learning
+  negative, so it must not be read as a fix.
+ASSUMPTION A24 (delta rule, Nov 26): the critics' joint
+  recommendation (section 41). Replace the unsigned Hebbian
+  distal update with a local signed prediction-error rule
+  (Urbanczik and Senn 2014; Widrow-Hoff LMS):
+  W_dist1 += eta_d / (||y2_prev||^2 + 1) * outer(p1 - d1,
+  y2_prev). The error term is the difference between the
+  actual proximal drive p1 and the predicted distal drive
+  d1, both locally available at the module-1 distal
+  dendrite, so the rule is local and uses no gradient. It
+  directly enforces the thesis's physical match condition
+  (d1 must match p1) and allows depression as well as
+  potentiation, which removes the rank-1 positive-DC drift
+  that collapses the unsigned rule (section 41.3). With
+  norm_rows=False the rows are free to change magnitude.
+  W_dist1b is not updated by this rule (delay + delta is
+  untested). Set learn_rule="delta", eta_d=0.2 (sine) or
+  0.05 (planted), norm_rows=False, use_confirmation=False,
+  s_inh=0.0, full_code=True, n_out in {64, 256}.
+  Control "cov" (centred covariance Hebbian): the same
+  outer-product form with the error term replaced by the
+  centred post pattern (p1n - mean(p1n)) and the centred
+  pre code (y2_prev - mean(y2_prev)), at eta_b. It removes
+  the DC mode without any error signal, so it separates
+  "centering fixes it" from "the error term fixes it".
 ASSUMPTION A5 (row-norm preservation after each Hebbian update):
   after every W_dist1 / W_prox update, each row is rescaled to its
   initial L2 norm. Justification: the v1 rules as written are purely
@@ -312,7 +502,7 @@ class ReservoirModule(torch.nn.Module):
 class RPCNetwork(torch.nn.Module):
     def __init__(self, K=16, n_exp=256, n_res=200, n_out=64,
                  theta_p=1.0, theta_d=1.0, theta_f=1.28,
-                 eta_b=0.05, eta_c=0.05, w_max=2.0, s_inh=0.5, g2=1.0,
+                 eta_b=0.05, eta_c=0.05, eta_d=0.2, w_max=2.0, s_inh=0.5, g2=1.0,
                  w_dist_std=0.5, norm_rows=True, y2_topk=True,
                  rho=0.9, alpha=0.3, d_in=None, center_proto=False,
                  learn_rule="burst", surround_beta=0.0,
@@ -320,7 +510,9 @@ class RPCNetwork(torch.nn.Module):
                  mod2_direct=False, rho2=None, y2_frac=0.1,
                  learn_prox=False, smooth_sigma=0.0,
                  learn_prox1=False, split_proto=False, graded_conf=False,
-                 dot_proto=False):
+                 dot_proto=False, full_code=False, knn_readout=False,
+                 pre_sharpen=0.0, read_sharpen=0.0, proto_proj=False,
+                 drive_proto=False):
         # center_proto: subtract the mean prototype (over classes that
         # appear in train) from every prototype and from d1 before the
         # cosine prediction. Train-data means only, no new learned
@@ -346,6 +538,7 @@ class RPCNetwork(torch.nn.Module):
         # A1: thresholds are z-scores on standardised drives, not raw 0.5.
         self.theta_p, self.theta_d, self.theta_f = theta_p, theta_d, theta_f
         self.eta_b, self.eta_c, self.w_max = eta_b, eta_c, w_max
+        self.eta_d = eta_d  # A24: delta-rule step size.
         self.learn_rule = learn_rule
         # A12: fit W_prox by ridge regression (fit_prox) instead of
         # leaving it random. Set by run() before calibrate().
@@ -360,6 +553,21 @@ class RPCNetwork(torch.nn.Module):
         self.graded_conf = graded_conf
         # A17: dot-product readout (see module docstring).
         self.dot_proto = dot_proto
+        # A18: full graded code, all cells project back (see docstring).
+        self.full_code = full_code
+        # A19: nearest-neighbour readout over stored p1 (see docstring).
+        self.knn_readout = knn_readout
+        self._p1_bank = None
+        self._p1_bank_tok = None
+        # A20: sharpened learning pre-term (see docstring). 0 = off.
+        self.pre_sharpen = pre_sharpen
+        # A21: sharpened distal-drive read (see docstring). 0 = off.
+        self.read_sharpen = read_sharpen
+        # A22: prototype-span projection readout (see docstring).
+        self.proto_proj = proto_proj
+        self._proto_proj = None
+        # A23: drive prototypes (see docstring).
+        self.drive_proto = drive_proto
         # A9b/c: divisive sharpening of d1 at the readout only, and
         # top-k post term for the coactivity rule.
         self.d1_sharpen = d1_sharpen
@@ -411,12 +619,27 @@ class RPCNetwork(torch.nn.Module):
         self.r2_prev.zero_()
         self.p2_prev.zero_()
 
+    def _read_code(self, y):
+        """A21: sharpen the code for the distal-drive read only.
+        y**p, renormalised to y's L2 norm, so the drive magnitude
+        is unchanged. The learning still uses the raw graded code
+        as its pre-term. No-op when read_sharpen is 0, and a no-op
+        on the binary top-6 code (y**p = y)."""
+        if self.read_sharpen <= 0:
+            return y
+        yr = y ** self.read_sharpen
+        n0 = y.norm()
+        n1 = yr.norm().clamp(min=1e-9)
+        return yr * (n0 / n1)
+
     def _distal_drive(self):
         """A10: distal drive from the last two module-2 codes. With
-        use_delay off this is exactly W_dist1 @ y2_prev."""
-        d1 = self.W_dist1 @ self.y2_prev
+        use_delay off this is exactly W_dist1 @ y2_prev. A21
+        sharpens the read code (see _read_code); the learning
+        still uses the raw graded code as its pre-term."""
+        d1 = self.W_dist1 @ self._read_code(self.y2_prev)
         if self.use_delay:
-            d1 = d1 + self.W_dist1b @ self.y2_prev2
+            d1 = d1 + self.W_dist1b @ self._read_code(self.y2_prev2)
         return d1
 
     def _mod2_input(self, x, r1):
@@ -433,7 +656,17 @@ class RPCNetwork(torch.nn.Module):
     def _y2_from_p2n(self, p2n):
         """Module-2 output code. Default (A6): top-k winners (fixed
         sparsity, rank-based, scale-invariant). With y2_topk=False:
-        fixed z-threshold (A4)."""
+        fixed z-threshold (A4). With full_code=True (A18): the full
+        graded code, relu of the per-step standardised drive: every
+        cell above the step mean projects back, graded by how far
+        above the mean in units of the step's own spread, no rank
+        cutoff. The per-step standardisation is load-bearing: p2
+        grows ~15x in scale during training while sd_p2 is frozen,
+        so the naive relu(p2n) blows up to a mean of 6.09 and
+        scores below chance (0.013)."""
+        if self.full_code:
+            z = (p2n - p2n.mean()) / (p2n.std() + 1e-6)
+            return torch.relu(z)
         if self.y2_topk:
             y2 = torch.zeros_like(p2n)
             y2[torch.topk(p2n, self.y2_k).indices] = 1.0
@@ -506,6 +739,9 @@ class RPCNetwork(torch.nn.Module):
         if self.split_proto:
             ssums = torch.zeros(3 * self.K, self.mod1.n_out)
             scounts = torch.zeros(3 * self.K)
+        # A19: store every training example's p1 vector for the
+        # nearest-neighbour readout (capped at 4000 vectors).
+        bank, bank_tok = [], []
         self.reset()
         with torch.no_grad():
             for seq in data[:proto_n]:
@@ -516,11 +752,17 @@ class RPCNetwork(torch.nn.Module):
                     p1, _, _ = self.mod1.forward(x)
                     sums[tok] += p1
                     counts[tok] += 1
+                    if self.knn_readout and len(bank) < 4000:
+                        bank.append(p1.numpy().copy())
+                        bank_tok.append(tok)
                     if self.split_proto and prev is not None:
                         d = 1 if tok > prev else (0 if tok < prev else 2)
                         ssums[d * self.K + tok] += p1
                         scounts[d * self.K + tok] += 1
                     prev = tok
+        if self.knn_readout and bank:
+            self._p1_bank = torch.as_tensor(np.stack(bank))
+            self._p1_bank_tok = torch.as_tensor(bank_tok, dtype=torch.long)
         plain = sums / counts[:, None].clamp(min=1)
         if self.split_proto:
             split = ssums / scounts[:, None].clamp(min=1)
@@ -533,6 +775,29 @@ class RPCNetwork(torch.nn.Module):
         else:
             self.prototypes = plain
             self._finalize_prototypes(counts)
+        self.reset()
+
+    def build_drive_prototypes(self, data, proto_n=20):
+        """A23: prototypes are mean distal drive d1 per next-token,
+        from the TRAINED network. At step i the drive d1 predicts
+        token i (it is computed from the code of token i-1), so the
+        prototype for token k is the mean d1 over steps whose current
+        token is k. Uses train data only. Replaces self.prototypes;
+        the kNN bank (if any) is left as built from p1, so drive_proto
+        is for the cosine path only."""
+        sums = torch.zeros(self.K, self.mod1.n_out)
+        counts = torch.zeros(self.K)
+        self.reset()
+        with torch.no_grad():
+            for seq in data[:proto_n]:
+                self.reset()
+                for i, tok in enumerate(seq):
+                    out = self.step(tok, train=False)
+                    if i > 0:
+                        sums[tok] += out["d1"]
+                        counts[tok] += 1
+        self.prototypes = sums / counts[:, None].clamp(min=1)
+        self._finalize_prototypes(counts)
         self.reset()
 
     def _finalize_prototypes(self, counts):
@@ -548,6 +813,13 @@ class RPCNetwork(torch.nn.Module):
         else:
             self._proto_mean = torch.zeros_like(self.prototypes[0])
             self._proto_norm = torch.nn.functional.normalize(self.prototypes, dim=1)
+        # A22: projection onto the span of the prototypes, from
+        # train data only. Applied in predict_from_distal when
+        # proto_proj is on.
+        if self.proto_proj:
+            self._proto_proj = torch.linalg.pinv(self.prototypes) @ self.prototypes
+        else:
+            self._proto_proj = None
 
     def fit_prox(self, data, lam=1.0):
         """A12: fit mod2.W_prox by ridge regression from the module-2
@@ -700,6 +972,24 @@ class RPCNetwork(torch.nn.Module):
     def predict_from_distal(self, d1):
         if self.prototypes is None:
             return -1
+        # A22: project the drive onto the prototype span first,
+        # so the comparison sees only the components that can
+        # match a prototype. Applies to all readout paths.
+        if self.proto_proj and self._proto_proj is not None:
+            d1 = self._proto_proj @ d1
+        if self.knn_readout and self._p1_bank is not None:
+            # A19: nearest stored p1 vector by cosine. Subsumes
+            # split_proto: the bank carries direction info in the
+            # stored vectors, so no % K is needed (bank tokens are
+            # already 0..K-1). Falls through to the prototype path
+            # when the bank is not built yet (fit_prox/fit_prox1).
+            q = d1 - self._proto_mean if self.center_proto else d1
+            bank = self._p1_bank - self._proto_mean \
+                if self.center_proto else self._p1_bank
+            qn = torch.nn.functional.normalize(q[None, :], dim=1)
+            bn = torch.nn.functional.normalize(bank, dim=1)
+            idx = int(torch.argmax(qn @ bn.T).item())
+            return int(self._p1_bank_tok[idx].item())
         if self.center_proto:
             d1 = d1 - self._proto_mean
         if self.dot_proto:
@@ -767,27 +1057,69 @@ class RPCNetwork(torch.nn.Module):
             else:
                 g = 1.0
             if train and plasticity:
-                if self.learn_rule == "coactivity":
-                    # A8: ungated co-activity ("hit and solidify").
-                    if self.post_topk:  # A9c: winners only.
-                        post = torch.zeros_like(p1n)
-                        post[torch.topk(p1n, self.y2_k).indices] = 1.0
-                    else:
-                        post = (p1n > self.theta_p).float()
-                else:  # "burst": thesis-faithful burst-gated Hebbian.
-                    post = b1
-                post = post * g  # A16: grade the distal update by match.
-                self.W_dist1 += self.eta_b * torch.outer(post, self.y2_prev)
-                self.W_dist1.clamp_(-self.w_max, self.w_max)
-                if self.norm_rows:  # A5: keep each row's initial norm.
-                    n = self.W_dist1.norm(dim=1, keepdim=True).clamp(min=1e-9)
-                    self.W_dist1.mul_(self.W_dist1_row0[:, None] / n)
-                if self.use_delay:  # A10: same rule, two-step code.
-                    self.W_dist1b += self.eta_b * torch.outer(post, self.y2_prev2)
-                    self.W_dist1b.clamp_(-self.w_max, self.w_max)
+                if self.learn_rule == "delta":
+                    # A24: local signed prediction-error rule. The
+                    # error is the raw drive difference (p1 - d1);
+                    # the normaliser is the squared pre-code norm
+                    # plus 1 (normalised LMS). No graded factor g:
+                    # the error term IS the match signal. No
+                    # W_dist1b update (delay + delta untested).
+                    err = p1 - d1
+                    denom = float(self.y2_prev @ self.y2_prev) + 1.0
+                    self.W_dist1 += ((self.eta_d / denom) *
+                                     torch.outer(err, self.y2_prev))
+                    self.W_dist1.clamp_(-self.w_max, self.w_max)
                     if self.norm_rows:
-                        n = self.W_dist1b.norm(dim=1, keepdim=True).clamp(min=1e-9)
-                        self.W_dist1b.mul_(self.W_dist1b_row0[:, None] / n)
+                        n = self.W_dist1.norm(dim=1,
+                                              keepdim=True).clamp(min=1e-9)
+                        self.W_dist1.mul_(self.W_dist1_row0[:, None] / n)
+                elif self.learn_rule == "cov":
+                    # A24 control: centred covariance Hebbian. Same
+                    # outer-product form, but the error term is
+                    # replaced by the centred post pattern and the
+                    # centred pre code. Removes the DC mode without
+                    # any error signal. No W_dist1b update.
+                    post = p1n - p1n.mean()
+                    pre = self.y2_prev - self.y2_prev.mean()
+                    self.W_dist1 += self.eta_b * torch.outer(post, pre)
+                    self.W_dist1.clamp_(-self.w_max, self.w_max)
+                    if self.norm_rows:
+                        n = self.W_dist1.norm(dim=1,
+                                              keepdim=True).clamp(min=1e-9)
+                        self.W_dist1.mul_(self.W_dist1_row0[:, None] / n)
+                else:
+                    if self.learn_rule == "coactivity":
+                        # A8: ungated co-activity ("hit and solidify").
+                        if self.post_topk:  # A9c: winners only.
+                            post = torch.zeros_like(p1n)
+                            post[torch.topk(p1n, self.y2_k).indices] = 1.0
+                        else:
+                            post = (p1n > self.theta_p).float()
+                    else:  # "burst": thesis-faithful burst-gated Hebbian.
+                        post = b1
+                    post = post * g  # A16: grade the distal update by match.
+                    # A20: sharpen the learning pre-term. The drive still
+                    # reads the raw graded code; only the update
+                    # concentrates on the strongest cells. Renormalised
+                    # to y2_prev's norm so the update magnitude is
+                    # unchanged. No-op on the binary top-6 code.
+                    pre = self.y2_prev
+                    if self.pre_sharpen > 0:
+                        pre = self.y2_prev ** self.pre_sharpen
+                        n0 = self.y2_prev.norm()
+                        n1 = pre.norm().clamp(min=1e-9)
+                        pre = pre * (n0 / n1)
+                    self.W_dist1 += self.eta_b * torch.outer(post, pre)
+                    self.W_dist1.clamp_(-self.w_max, self.w_max)
+                    if self.norm_rows:  # A5: keep each row's initial norm.
+                        n = self.W_dist1.norm(dim=1, keepdim=True).clamp(min=1e-9)
+                        self.W_dist1.mul_(self.W_dist1_row0[:, None] / n)
+                    if self.use_delay:  # A10: same rule, two-step code.
+                        self.W_dist1b += self.eta_b * torch.outer(post, self.y2_prev2)
+                        self.W_dist1b.clamp_(-self.w_max, self.w_max)
+                        if self.norm_rows:
+                            n = self.W_dist1b.norm(dim=1, keepdim=True).clamp(min=1e-9)
+                            self.W_dist1b.mul_(self.W_dist1b_row0[:, None] / n)
                 if use_confirmation:
                     d2 = self.W_conf @ b1
                     d2n = d2 / self.sd_d2
@@ -842,6 +1174,11 @@ def run(train_data, test_data, epochs=5, **kw):
             net.reset()
             for tok in seq:
                 gs.append(net.step(tok, train=True, **step_kw)["g"])
+    if getattr(net, "drive_proto", False):
+        # A23: rebuild the prototypes from the trained network's
+        # own drive, so the evaluation readout compares d1 against
+        # drive templates. Training used the p1 prototypes.
+        net.build_drive_prototypes(train_data, proto_n=proto_n)
     correct, total, bursts, y2s = 0, 0, [], []
     for seq in test_data:
         net.reset()

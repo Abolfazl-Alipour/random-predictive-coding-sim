@@ -1,0 +1,7 @@
+planted A18-fullcode full: acc mean=0.065 range=[0.042,0.083] chance=0.0625 mean_burst=0.150 accs=[0.08, 0.083, 0.042, 0.071, 0.046]
+planted A18-fullcode no-plasticity: acc mean=0.060 range=[0.051,0.067] chance=0.0625 mean_burst=0.025 accs=[0.058, 0.067, 0.064, 0.051, 0.061]
+planted A19-knn full: acc mean=0.072 range=[0.049,0.083] chance=0.0625 mean_burst=0.151 accs=[0.079, 0.083, 0.078, 0.07, 0.049]
+planted A19-knn no-plasticity: acc mean=0.060 range=[0.052,0.068] chance=0.0625 mean_burst=0.025 accs=[0.058, 0.068, 0.062, 0.052, 0.058]
+planted A18+A19 full: acc mean=0.066 range=[0.037,0.083] chance=0.0625 mean_burst=0.150 accs=[0.079, 0.083, 0.037, 0.08, 0.053]
+planted A18+A19 no-plasticity: acc mean=0.062 range=[0.057,0.067] chance=0.0625 mean_burst=0.025 accs=[0.057, 0.062, 0.067, 0.06, 0.065]
+EXIT_PLANTED=0

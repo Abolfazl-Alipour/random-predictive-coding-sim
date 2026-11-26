@@ -1,0 +1,5 @@
+planted A18+sharp2 full: acc mean=0.070 range=[0.051,0.083] chance=0.0625 mean_burst=0.152 accs=[0.083, 0.083, 0.064, 0.067, 0.051]
+planted A18+sharp2 no-plasticity: acc mean=0.060 range=[0.051,0.067] chance=0.0625 mean_burst=0.025 accs=[0.058, 0.067, 0.064, 0.051, 0.061]
+planted A12+knn full: acc mean=0.074 range=[0.046,0.084] chance=0.0625 mean_burst=0.150 accs=[0.079, 0.082, 0.081, 0.084, 0.046]
+planted A12+knn no-plasticity: acc mean=0.070 range=[0.056,0.089] chance=0.0625 mean_burst=0.023 accs=[0.089, 0.063, 0.085, 0.056, 0.056]
+EXIT_PLANTED=0

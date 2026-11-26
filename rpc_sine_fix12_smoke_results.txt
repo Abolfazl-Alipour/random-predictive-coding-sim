@@ -1,0 +1,3 @@
+A18+read2: acc=0.273 burst=0.161 y2=0.420
+A18+read3: acc=0.274 burst=0.159 y2=0.416
+EXIT=0

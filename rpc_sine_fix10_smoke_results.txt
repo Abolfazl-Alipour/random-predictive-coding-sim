@@ -1,0 +1,7 @@
+baseline cosine top6: acc=0.282 burst=0.150 y2=0.094 g=0.381
+A18 full code: acc=0.234 burst=0.161 y2=0.420 g=0.150
+A18 noconf: acc=0.199 burst=0.161 y2=0.402 g=0.182
+A18 noplast: acc=0.031 burst=0.022 y2=0.402 g=0.055
+A19 knn readout: acc=0.281 burst=0.150 y2=0.094 g=0.381
+A18+A19: acc=0.254 burst=0.161 y2=0.420 g=0.150
+EXIT=0

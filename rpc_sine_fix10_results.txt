@@ -1,0 +1,9 @@
+sine-fixed A18-fullcode full: acc mean=0.105 range=[0.028,0.218] chance=0.031 mean_burst=0.144 mean_y2=0.394 accs=[0.213, 0.218, 0.028, 0.037, 0.028]
+sine-fixed A18-fullcode no-plasticity: acc mean=0.023 range=[0.012,0.041] chance=0.031 mean_burst=0.019 mean_y2=0.399 accs=[0.031, 0.012, 0.016, 0.016, 0.041]
+sine-fixed A19-knn full: acc mean=0.218 range=[0.129,0.304] chance=0.031 mean_burst=0.136 mean_y2=0.094 accs=[0.304, 0.22, 0.129, 0.273, 0.164]
+sine-fixed A19-knn no-plasticity: acc mean=0.028 range=[0.010,0.039] chance=0.031 mean_burst=0.022 mean_y2=0.094 accs=[0.01, 0.023, 0.032, 0.039, 0.038]
+sine-fixed A18+A19 full: acc mean=0.106 range=[0.013,0.263] chance=0.031 mean_burst=0.144 mean_y2=0.394 accs=[0.263, 0.19, 0.013, 0.042, 0.021]
+sine-fixed A18+A19 no-plasticity: acc mean=0.017 range=[0.007,0.027] chance=0.031 mean_burst=0.019 mean_y2=0.399 accs=[0.015, 0.007, 0.013, 0.027, 0.021]
+probe trained sine top6: y2=0.516 d1=0.509 r1=1.000 (y2 range [0.490,0.568])
+probe trained sine fullcode: y2=0.709 d1=0.457 r1=1.000 (y2 range [0.664,0.772])
+EXIT_SINE=0
