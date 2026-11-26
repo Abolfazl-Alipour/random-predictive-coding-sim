@@ -1178,3 +1178,42 @@ coactivity rule, smooth 3.0, 5 epochs, 3 seeds. Bars: accuracy
    tweak, a dot-product readout (argmax over the raw dot product
    of d1 with the unit prototypes instead of cosine, so a strong
    prediction counts for more than a weak one).
+
+## 35. Sine fix round 8: dot-product readout helps a little, best 5-seed score yet, still below the bar (Nov 26, 01:31 PST)
+
+Driver rpc_sine_fix8.py, output rpc_sine_fix8_results.txt. All
+coactivity rule, 5 epochs. Bars: accuracy >= 0.231 (fixed sine)
+and >= 0.2625 (planted), gain >= 0.10. This round was run
+proactively (Nov 26, 01:14-01:31 PT) so the result is ready
+whichever of the three options Reza picks after round 7.
+
+1. Fixed sine, graded + eta_b 0.15, alpha 0.7, dot, 5 seeds:
+   full 0.217 (range 0.147 to 0.288), control 0.036, gain
+   +0.181. Reference cosine: 0.202 at 5 seeds. Dot is +0.015
+   better. Two seeds pass the bar individually (0.288, 0.241),
+   but the mean is still 0.014 short. Best 5-seed fixed-sine
+   score yet.
+2. Fixed sine, binary, smooth 3.0, alpha 1.0, dot, 5 seeds:
+   full 0.209 (range 0.149 to 0.250), control 0.023, gain
+   +0.186. Reference cosine: 0.197-0.199. Dot is +0.010 to
+   +0.012 better. Best binary 5-seed score.
+3. Fixed sine, one-hot, alpha 1.0, dot, 3 seeds: full 0.074
+   (range 0.061 to 0.092), control 0.021, gain +0.053.
+   Reference cosine: 0.071 at 3 seeds. Flat (+0.003). The
+   prototype norms vary too little with one-hot input for the
+   weighting to matter.
+4. Planted motifs, alpha 1.0, dot, 5 seeds: full 0.078 (range
+   0.053 to 0.109), control 0.053, gain +0.025. Reference
+   cosine coactivity: 0.072-0.073. Dot is +0.005 better. Still
+   far below the bar.
+5. Verdict on A17: a small, consistent improvement on the
+   smooth fixed sine (+0.010 to +0.015), flat elsewhere. The
+   prototype-norm weighting works as designed (norms 0.55 to
+   0.75, std 0.061) but the variation is modest, so the gain is
+   modest. The readout story is now complete: cosine 0.202,
+   dot 0.217, trained ridge 0.556-0.673 on the same drive. The
+   prototype readout, in either form, caps around 0.20-0.22.
+   The final boundary after 8 rounds: fixed sine about 0.22,
+   variable sine about 0.11, Lorenz about 0.09, planted motifs
+   about 0.11, all below the bars. The remaining decision is
+   Reza's: stop, or accept the trained readout.

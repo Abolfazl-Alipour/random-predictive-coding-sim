@@ -214,6 +214,21 @@ ASSUMPTION A16 (graded confirmation, Nov 26): the confirmation
   diagnostic is the mean and spread of g during training: if g
   barely varies across steps, grading is just a smaller learning
   rate and should not help.
+ASSUMPTION A17 (dot-product readout, Nov 26): the last untested
+  tweak to the prototype readout. The cosine readout normalises
+  d1 and every prototype, so only the angle matters and a strong
+  prediction counts the same as a weak one. The dot-product
+  readout scores each prototype by the raw dot product d1 .
+  proto_k, which is ||d1|| * ||proto_k|| * cos, so each prototype
+  is weighted by its stored strength (its mean p1 norm). Tokens
+  whose stored pattern fires more strongly win ties. Note the
+  honest limit: a dot product against UNIT prototypes would be
+  identical to cosine, because ||d1|| is the same for every k, so
+  the only real dot-product variant is the raw-prototype one, and
+  it only changes the answer if the prototype norms actually
+  differ across tokens. The diagnostic is the spread of the
+  prototype norms: if they are nearly equal, this test is vacuous
+  and the readout is not the lever.
 ASSUMPTION A5 (row-norm preservation after each Hebbian update):
   after every W_dist1 / W_prox update, each row is rescaled to its
   initial L2 norm. Justification: the v1 rules as written are purely
@@ -304,7 +319,8 @@ class RPCNetwork(torch.nn.Module):
                  d1_sharpen=False, post_topk=False, use_delay=False,
                  mod2_direct=False, rho2=None, y2_frac=0.1,
                  learn_prox=False, smooth_sigma=0.0,
-                 learn_prox1=False, split_proto=False, graded_conf=False):
+                 learn_prox1=False, split_proto=False, graded_conf=False,
+                 dot_proto=False):
         # center_proto: subtract the mean prototype (over classes that
         # appear in train) from every prototype and from d1 before the
         # cosine prediction. Train-data means only, no new learned
@@ -342,6 +358,8 @@ class RPCNetwork(torch.nn.Module):
         self.split_proto = split_proto
         # A16: graded confirmation (see module docstring).
         self.graded_conf = graded_conf
+        # A17: dot-product readout (see module docstring).
+        self.dot_proto = dot_proto
         # A9b/c: divisive sharpening of d1 at the readout only, and
         # top-k post term for the coactivity rule.
         self.d1_sharpen = d1_sharpen
@@ -684,8 +702,19 @@ class RPCNetwork(torch.nn.Module):
             return -1
         if self.center_proto:
             d1 = d1 - self._proto_mean
-        a = torch.nn.functional.normalize(d1[None, :], dim=1)
-        idx = int(torch.argmax(a @ self._proto_norm.T).item())
+        if self.dot_proto:
+            # A17: raw dot product against the unnormalised
+            # prototypes. The score is ||d1|| * ||proto_k|| * cos,
+            # so each prototype is weighted by its stored
+            # strength. (A dot product against unit prototypes
+            # would be identical to cosine, since ||d1|| is the
+            # same for every k, so that variant is not tested.)
+            protos = self.prototypes - self._proto_mean \
+                if self.center_proto else self.prototypes
+            idx = int(torch.argmax(d1 @ protos.T).item())
+        else:
+            a = torch.nn.functional.normalize(d1[None, :], dim=1)
+            idx = int(torch.argmax(a @ self._proto_norm.T).item())
         # A15: split prototypes are laid out dir*K + tok; the token is idx % K.
         return idx % self.K if self.split_proto else idx
 

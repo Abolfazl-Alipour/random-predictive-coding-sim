@@ -1,0 +1,9 @@
+sine-fixed dot graded-eta0.15-alpha0.7 full: acc mean=0.217 range=[0.147,0.288] chance=0.031 mean_burst=0.136 accs=[0.288, 0.24, 0.167, 0.147, 0.241]
+sine-fixed dot graded-eta0.15-alpha0.7 no-plasticity: acc mean=0.036 range=[0.017,0.059] chance=0.031 mean_burst=0.022 accs=[0.042, 0.059, 0.017, 0.025, 0.038]
+sine-fixed dot binary-alpha1.0 full: acc mean=0.209 range=[0.149,0.250] chance=0.031 mean_burst=0.142 accs=[0.191, 0.25, 0.149, 0.241, 0.215]
+sine-fixed dot binary-alpha1.0 no-plasticity: acc mean=0.023 range=[0.008,0.054] chance=0.031 mean_burst=0.024 accs=[0.054, 0.009, 0.014, 0.031, 0.008]
+sine-fixed dot onehot-alpha1.0 full: acc mean=0.074 range=[0.061,0.092] chance=0.031 mean_burst=0.109 accs=[0.092, 0.061, 0.07]
+sine-fixed dot onehot-alpha1.0 no-plasticity: acc mean=0.021 range=[0.016,0.026] chance=0.031 mean_burst=0.023 accs=[0.026, 0.021, 0.016]
+planted dot alpha1.0 full: acc mean=0.078 range=[0.053,0.109] chance=0.0625 mean_burst=0.151 accs=[0.109, 0.083, 0.082, 0.063, 0.053]
+planted dot alpha1.0 no-plasticity: acc mean=0.053 range=[0.040,0.063] chance=0.0625 mean_burst=0.025 accs=[0.055, 0.063, 0.051, 0.04, 0.056]
+EXIT=0
