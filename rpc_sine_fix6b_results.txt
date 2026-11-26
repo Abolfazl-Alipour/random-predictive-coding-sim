@@ -1,0 +1,5 @@
+sine-fixed graded-eta0.25-alpha1.0 full: acc mean=0.196 range=[0.125,0.283] chance=0.031 mean_burst=0.130 mean_g=0.178 std_g=0.138 accs=[0.22, 0.283, 0.157, 0.125, 0.197]
+sine-fixed graded-eta0.25-alpha1.0 no-plasticity: acc mean=0.022 range=[0.010,0.049] chance=0.031 mean_burst=0.024 mean_g=0.041 std_g=0.064 accs=[0.049, 0.01, 0.024, 0.02, 0.011]
+sine-fixed graded-eta0.15-alpha0.7 full: acc mean=0.230 range=[0.144,0.275] chance=0.031 mean_burst=0.130 mean_g=0.306 std_g=0.109 accs=[0.272, 0.275, 0.144]
+sine-fixed graded-eta0.15-alpha0.7 no-plasticity: acc mean=0.027 range=[0.017,0.045] chance=0.031 mean_burst=0.022 mean_g=0.048 std_g=0.064 accs=[0.045, 0.02, 0.017]
+EXIT=0

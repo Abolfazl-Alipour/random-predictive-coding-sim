@@ -1,0 +1,9 @@
+sine-fixed graded-eta0.15-noconf full: acc mean=0.178 range=[0.124,0.218] chance=0.031 mean_burst=0.135 mean_g=0.238 std_g=0.108 accs=[0.218, 0.193, 0.124]
+sine-fixed graded-eta0.15-noconf no-plasticity: acc mean=0.027 range=[0.017,0.045] chance=0.031 mean_burst=0.022 mean_g=0.048 std_g=0.064 accs=[0.045, 0.02, 0.017]
+sine-fixed binary-noconf full: acc mean=0.186 range=[0.140,0.219] chance=0.031 mean_burst=0.134 mean_g=1.000 std_g=0.000 accs=[0.219, 0.198, 0.14]
+sine-fixed binary-noconf no-plasticity: acc mean=0.027 range=[0.017,0.045] chance=0.031 mean_burst=0.022 mean_g=1.000 std_g=0.000 accs=[0.045, 0.02, 0.017]
+sine graded-eta0.15-alpha0.7 full: acc mean=0.102 range=[0.051,0.163] chance=0.031 mean_burst=0.130 mean_g=0.239 std_g=0.118 accs=[0.051, 0.163, 0.092]
+sine graded-eta0.15-alpha0.7 no-plasticity: acc mean=0.040 range=[0.026,0.056] chance=0.031 mean_burst=0.022 mean_g=0.045 std_g=0.066 accs=[0.038, 0.056, 0.026]
+lorenz graded-eta0.15-alpha0.7 full: acc mean=0.093 range=[0.033,0.138] chance=0.031 mean_burst=0.108 mean_g=0.261 std_g=0.157 accs=[0.106, 0.033, 0.138]
+lorenz graded-eta0.15-alpha0.7 no-plasticity: acc mean=0.034 range=[0.018,0.047] chance=0.031 mean_burst=0.023 mean_g=0.062 std_g=0.079 accs=[0.047, 0.018, 0.036]
+EXIT=0

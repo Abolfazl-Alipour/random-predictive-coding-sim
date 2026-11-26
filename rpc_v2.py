@@ -192,6 +192,28 @@ ASSUMPTION A15 (direction-split prototypes, Nov 25): the readout
   same value on the way down. It only helps if d1 itself carries
   direction, which the smooth input gives it (section 27 probe:
   d1 direction decode 0.892 at sigma 2.0 vs 0.740 one-hot).
+ASSUMPTION A16 (graded confirmation, Nov 26): the confirmation
+  signal is a strength, not a switch. The binary burst gate
+  decides WHERE learning happens (which units), but a well-matched
+  prediction should teach more than a poorly matched one. With
+  graded_conf on, each step computes g, the cosine match between
+  the prediction (the distal drive d1, read from the previous
+  module-2 code) and the actual input's code (the proximal drive
+  p1), clipped to [0, 1], and the distal Hebbian update is scaled
+  by g. The confirmation rule and the inhibition keep the binary
+  burst, so this test isolates one mechanism: learning in
+  proportion to match quality. Rationale: with a binary gate, a
+  row learns equally from a rising and a falling successor, so it
+  averages them and matches neither; with graded confirmation, the
+  better-matching direction teaches more and the row should
+  concentrate on it. This is still inside the thesis idea (the
+  burst marks a confirmed prediction); it only says the
+  confirmation has a strength. It differs from A3, which grades
+  the burst per unit and removes the threshold; A16 keeps the
+  threshold and grades the update by the step-level match. The
+  diagnostic is the mean and spread of g during training: if g
+  barely varies across steps, grading is just a smaller learning
+  rate and should not help.
 ASSUMPTION A5 (row-norm preservation after each Hebbian update):
   after every W_dist1 / W_prox update, each row is rescaled to its
   initial L2 norm. Justification: the v1 rules as written are purely
@@ -282,7 +304,7 @@ class RPCNetwork(torch.nn.Module):
                  d1_sharpen=False, post_topk=False, use_delay=False,
                  mod2_direct=False, rho2=None, y2_frac=0.1,
                  learn_prox=False, smooth_sigma=0.0,
-                 learn_prox1=False, split_proto=False):
+                 learn_prox1=False, split_proto=False, graded_conf=False):
         # center_proto: subtract the mean prototype (over classes that
         # appear in train) from every prototype and from d1 before the
         # cosine prediction. Train-data means only, no new learned
@@ -318,6 +340,8 @@ class RPCNetwork(torch.nn.Module):
         self.smooth_sigma = smooth_sigma
         # A15: direction-split prototypes (see module docstring).
         self.split_proto = split_proto
+        # A16: graded confirmation (see module docstring).
+        self.graded_conf = graded_conf
         # A9b/c: divisive sharpening of d1 at the readout only, and
         # top-k post term for the coactivity rule.
         self.d1_sharpen = d1_sharpen
@@ -702,6 +726,17 @@ class RPCNetwork(torch.nn.Module):
             # above still uses the unsharpened d1n.
             pred_d1 = d1 * d1.abs() if self.d1_sharpen else d1
             pred = self.predict_from_distal(pred_d1)
+            # A16: graded confirmation. g is the match quality
+            # between the prediction (d1) and the actual input's
+            # code (p1), cosine clipped to [0, 1]. When graded_conf
+            # is on, the distal Hebbian update is scaled by g, so
+            # well-matched steps teach more than poorly matched
+            # ones; when off, g is 1 and nothing changes.
+            if self.graded_conf:
+                g = float(torch.nn.functional.cosine_similarity(
+                    d1, p1, dim=0).clamp(0, 1))
+            else:
+                g = 1.0
             if train and plasticity:
                 if self.learn_rule == "coactivity":
                     # A8: ungated co-activity ("hit and solidify").
@@ -712,6 +747,7 @@ class RPCNetwork(torch.nn.Module):
                         post = (p1n > self.theta_p).float()
                 else:  # "burst": thesis-faithful burst-gated Hebbian.
                     post = b1
+                post = post * g  # A16: grade the distal update by match.
                 self.W_dist1 += self.eta_b * torch.outer(post, self.y2_prev)
                 self.W_dist1.clamp_(-self.w_max, self.w_max)
                 if self.norm_rows:  # A5: keep each row's initial norm.
@@ -740,7 +776,7 @@ class RPCNetwork(torch.nn.Module):
             self.r2_prev.copy_(r2)
             self.p2_prev.copy_(p2n)
         return {"pred": pred, "burst_rate": float(b1.mean()),
-                "y2_rate": float(y2.mean()),
+                "y2_rate": float(y2.mean()), "g": g,
                 # d1 is returned (no behaviour change) so a caller can
                 # fit a learned readout on the distal drive (section 18).
                 # d1 at step t is computed from y2_prev only, before the
@@ -771,11 +807,12 @@ def run(train_data, test_data, epochs=5, **kw):
         net.fit_prox1(train_data)
     cal = net.calibrate(train_data)
     net.build_prototypes(train_data, proto_n=proto_n)
+    gs = []
     for ep in range(epochs):
         for seq in train_data:
             net.reset()
             for tok in seq:
-                net.step(tok, train=True, **step_kw)
+                gs.append(net.step(tok, train=True, **step_kw)["g"])
     correct, total, bursts, y2s = 0, 0, [], []
     for seq in test_data:
         net.reset()
@@ -788,7 +825,8 @@ def run(train_data, test_data, epochs=5, **kw):
             y2s.append(out["y2_rate"])
     return {"acc": correct / max(total, 1), "chance": 1 / net.K,
             "mean_burst": float(np.mean(bursts)),
-            "mean_y2": float(np.mean(y2s)), "cal": cal}
+            "mean_y2": float(np.mean(y2s)), "cal": cal,
+            "mean_g": float(np.mean(gs)), "std_g": float(np.std(gs))}
 
 def run_vec(train_data, test_data, epochs=5, **kw):
     """run() for continuous vector inputs. Sequences are lists of

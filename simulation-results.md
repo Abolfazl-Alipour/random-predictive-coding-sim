@@ -1038,3 +1038,143 @@ output rpc_sine_fix5b_results.txt. All coactivity rule, 5 epochs,
    terms, a graded confirmation signal (strength proportional to
    match quality instead of a binary burst gate), so the smooth
    code's graded information drives learning proportionally.
+
+## 31. Sine fix round 6: graded confirmation hurts at the same learning rate; with compensation it is the best 3-seed score (Nov 26, 00:34 PST)
+
+Driver rpc_sine_fix6.py, output rpc_sine_fix6_results.txt. All
+coactivity rule, 5 epochs. Bars: accuracy >= 0.231 (fixed sine)
+and >= 0.2625 (planted), gain >= 0.10.
+
+1. Fixed sine, smooth 3.0, alpha 1.0, graded, 5 seeds: full
+   0.154 (range 0.092 to 0.247), control 0.022, gain +0.132.
+   Reference binary: 0.197-0.199. Graded is WORSE by 0.043.
+   mean_g 0.181, std_g 0.135.
+2. Fixed sine, smooth 3.0, alpha 0.7, graded, 3 seeds: full
+   0.196 (range 0.136 to 0.249), control 0.027, gain +0.169.
+   Reference binary: 0.210. Graded is slightly worse. mean_g
+   0.322, std_g 0.103: a slower reservoir matches better, so
+   grading has more signal here, but it still does not help.
+3. Fixed sine, one-hot, alpha 1.0, graded, 3 seeds: full 0.057
+   (range 0.028 to 0.075), control 0.026, gain +0.031.
+   Reference binary: 0.091. Graded is worse. mean_g 0.061: the
+   one-hot code carries no graded match information, so g is
+   tiny and learning is starved.
+4. Planted motifs, alpha 1.0, graded, 5 seeds: full 0.068
+   (range 0.039 to 0.099), control 0.054, gain +0.014.
+   Reference binary: 0.072-0.073. Graded is slightly worse.
+   mean_g 0.048: in noise the prediction almost never matches,
+   so graded confirmation turns learning nearly off.
+5. Variable sine, smooth 3.0, graded, 3 seeds: full 0.108
+   (range 0.033 to 0.195), control 0.039, gain +0.069.
+   Reference binary: 0.108 at 5 seeds. Flat. mean_g 0.115.
+6. Fixed sine, smooth 3.0, alpha 1.0, graded + eta_b 0.25, 3
+   seeds, full only: 0.220 (range 0.157 to 0.283). Best 3-seed
+   fixed-sine score yet, one seed at 0.283 above the bar.
+   Reference binary at 3 seeds: 0.199. mean_g 0.165, std_g
+   0.139. The 5x learning-rate compensation matters: grading
+   alone mostly just turns the learning rate down.
+7. Verdict on A16: graded confirmation at the same learning
+   rate is dead, it hurts everywhere. The diagnostic is
+   decisive: g is small wherever the model is weak (planted
+   0.048, one-hot 0.061), so grading starves exactly the cases
+   that need learning, and it is a rich-get-richer mechanism, not
+   a fix. The eta-compensated version is the only live lead from
+   this round. Round 6b running (rpc_sine_fix6b.py): 5-seed
+   confirmation of graded + eta_b 0.25 at alpha 1.0, and graded
+   + eta_b 0.15 at alpha 0.7 (3 seeds), where mean_g was highest.
+
+## 32. Sine fix round 6b: the alpha 1.0 bump was seed noise; the alpha 0.7 version sits 0.001 short of the bar (Nov 26, 00:44 PST)
+
+Driver rpc_sine_fix6b.py, output rpc_sine_fix6b_results.txt. All
+coactivity rule, smooth 3.0, graded confirmation on, 5 epochs.
+Bars: accuracy >= 0.231, gain >= 0.10.
+
+1. Graded + eta_b 0.25, alpha 1.0, 5 seeds: full 0.196 (range
+   0.125 to 0.283), control 0.022, gain +0.174. The 3-seed 0.220
+   regressed to 0.196 at 5 seeds (seeds 3 and 4 scored 0.125
+   and 0.197), identical to the binary reference (0.197-0.199).
+   That bump was seed noise. One seed still hits 0.283, above
+   the bar, but the mean is flat. mean_g 0.178, std_g 0.138.
+2. Graded + eta_b 0.15, alpha 0.7, 3 seeds: full 0.230 (range
+   0.144 to 0.275), control 0.027, gain +0.203. 0.001 short of
+   the accuracy bar. Two of three seeds pass the bar
+   individually (0.272, 0.275); one fails badly (0.144).
+   Reference binary alpha 0.7 smooth 3.0 is 0.210 at 3 seeds, so
+   graded + compensation adds +0.020 here. mean_g 0.306, std_g
+   0.109: the slower reservoir matches better, so grading has
+   the most signal at alpha 0.7, and this is the only condition
+   where graded beats binary.
+3. Round 6c running (rpc_sine_fix6c.py): 5-seed confirmation of
+   graded + eta_b 0.15 at alpha 0.7, plus a 10-epoch version at
+   3 seeds. If the 5-seed mean holds near 0.23, that is the first
+   pass of the accuracy bar; if it regresses toward 0.21, then
+   A16 is dead and the fixed-sine boundary stands at about 0.20.
+
+## 33. Sine fix round 6c: A16 is dead at 5 seeds; the boundary stands at about 0.20 (Nov 26, 00:58 PST)
+
+Driver rpc_sine_fix6c.py, output rpc_sine_fix6c_results.txt. All
+coactivity rule, smooth 3.0, graded confirmation on, 5 epochs.
+Bars: accuracy >= 0.231, gain >= 0.10.
+
+1. Graded + eta_b 0.15, alpha 0.7, 5 seeds: full 0.202 (range
+   0.144 to 0.275), control 0.031, gain +0.171. The 3-seed 0.230
+   regressed to 0.202 at 5 seeds (seeds 3 and 4 scored 0.156
+   and 0.162). Two seeds still pass the bar individually (0.272,
+   0.275), but the mean is 0.029 short. mean_g 0.317, std_g
+   0.115. Against the binary smooth 3.0 alpha 1.0 reference at
+   5 seeds (0.197-0.199), graded + compensation adds +0.003 to
+   +0.005, which is noise.
+2. Graded + eta_b 0.15, alpha 0.7, 10 epochs, 3 seeds: full
+   0.215 (range 0.119 to 0.279), control 0.027, gain +0.188.
+   More training does not help (0.215 against the 5-epoch
+   3-seed 0.230). One seed hits 0.279, one fails at 0.119.
+   mean_g 0.301, std_g 0.110.
+3. Verdict on A16: dead at 5 seeds. Graded confirmation never
+   beats binary by more than noise at 5 seeds, and it hurts at
+   the same learning rate on every task. The fixed-sine boundary
+   stands at about 0.20 (best 5-seed: graded + eta alpha 0.7 at
+   0.202, binary smooth 3.0 at 0.197-0.199). Round 7 running
+   (rpc_sine_fix7.py): the two remaining cheap combinations,
+   no-confirmation on the best config (the confirmation rule was
+   never ablated on the sine with smooth input) and the best
+   graded config on variable sine and Lorenz.
+
+## 34. Sine fix round 7: the confirmation rule helps, and the best graded config generalises no better (Nov 26, 01:07 PST)
+
+Driver rpc_sine_fix7.py, output rpc_sine_fix7_results.txt. All
+coactivity rule, smooth 3.0, 5 epochs, 3 seeds. Bars: accuracy
+>= 0.231 (fixed sine), gain >= 0.10.
+
+1. Fixed sine, graded + eta_b 0.15, alpha 0.7, no-confirmation:
+   full 0.178 (range 0.124 to 0.218), control 0.027, gain
+   +0.151. Reference with confirmation: 0.230 at 3 seeds.
+   Turning confirmation off HURTS the graded version by 0.052.
+   mean_g 0.238, std_g 0.108.
+2. Fixed sine, binary, alpha 0.7, no-confirmation: full 0.186
+   (range 0.140 to 0.219), control 0.027, gain +0.159.
+   Reference with confirmation: 0.210 at 3 seeds. Turning
+   confirmation off hurts the binary version too, by 0.024.
+   The confirmation rule is a net positive on the sine, not the
+   drag. That ablation is closed.
+3. Variable sine, graded + eta_b 0.15, alpha 0.7: full 0.102
+   (range 0.051 to 0.163), control 0.040, gain +0.062.
+   Reference: 0.108 (binary and graded at alpha 1.0). No
+   improvement. mean_g 0.239, std_g 0.118.
+4. Lorenz, graded + eta_b 0.15, alpha 0.7: full 0.093 (range
+   0.033 to 0.138), control 0.034, gain +0.059. Reference:
+   0.069 (binary smooth 3.0 alpha 1.0). Best Lorenz score yet,
+   +0.024, but still far below the bar and barely above chance
+   (0.031). mean_g 0.261, std_g 0.157.
+5. The A16 story is closed. Graded confirmation never beats
+   binary by more than noise at 5 seeds, it hurts at the same
+   learning rate, and the best graded config generalises no
+   better than binary. The hunt's boundary after 7 rounds:
+   fixed sine about 0.20 (best 5-seed 0.202), variable sine
+   about 0.11, Lorenz about 0.09, planted motifs about 0.11,
+   all below the bars. The prototype readout caps at about 0.20
+   no matter what is done to the learning. The next decision is
+   Reza's: stop, accept the trained readout (0.556 on the fixed
+   sine, already measured), or try the one remaining readout
+   tweak, a dot-product readout (argmax over the raw dot product
+   of d1 with the unit prototypes instead of cosine, so a strong
+   prediction counts for more than a weak one).

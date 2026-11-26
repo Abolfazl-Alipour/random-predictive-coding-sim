@@ -18,10 +18,11 @@ Hebbian learning.
    repeating cycle 0.843 and pure motif 0.934 at reservoir leak
    rate 1.0 (5 seeds, held-out test).
 3. It fails in noise and on continuous signals: planted motifs
-   0.113 at best (learned proximal projection), fixed sine 0.199
-   at best (smooth input), variable sine 0.108, Lorenz 0.069,
-   1D track 0.098. Every fix tried so far moves the number by
-   0.01 to 0.03 except the smooth input, and none passes the bar.
+   0.113 at best (learned proximal projection), fixed sine 0.202
+   at best (graded confirmation plus eta compensation), variable
+   sine 0.108, Lorenz 0.093, 1D track 0.098. Every fix tried so
+   far moves the number by 0.01 to 0.03 except the smooth input,
+   and none passes the bar.
 4. The bottleneck is the code, not the learning rule. The
    module-1 reservoir holds the current token perfectly (linear
    probe 1.000), but the module-2 code the distal drive reads
@@ -53,7 +54,12 @@ no-plasticity control.
 8. Variable-frequency sine, smooth input sigma 3.0: 0.108
    (control 0.036). One-hot input scores 0.035.
 9. Lorenz x, smooth input sigma 3.0: 0.069 (control 0.041).
-   One-hot input scores 0.044.
+   One-hot input scores 0.044. Best Lorenz score is 0.093
+   (graded confirmation plus eta_b 0.15, alpha 0.7).
+10. Fixed sine, graded confirmation (A16) plus eta_b 0.15,
+    alpha 0.7: 0.202 at 5 seeds (control 0.031). Graded
+    confirmation at the same learning rate hurts everywhere;
+    with eta compensation it ties binary at 5 seeds.
 
 ## How to run
 
@@ -67,7 +73,7 @@ no-plasticity control.
 ## Files
 
 1. `rpc_v2.py`: the model. All assumptions are labelled A1 to
-   A15 in the header.
+   A16 in the header.
 2. `rpc_toy.py`: the first version (v1). It never fires, because
    the distal drive starts at zero. Kept for the record, do not
    overwrite.
@@ -79,9 +85,10 @@ no-plasticity control.
    `rpc_direct.py`, `rpc_fix.py`, `rpc_wide.py`, `rpc_prox.py`,
    `rpc_alpha_sine.py`, `rpc_sine_diag.py`, `rpc_sine_fix.py`,
    `rpc_sine_fix2.py`, `rpc_sine_fix3.py`, `rpc_sine_fix4.py`,
-   `rpc_sine_fix5.py`, `rpc_sine_fix5b.py`: one driver per
-   experiment. Each has its own docstring with the question, the
-   design, and the result.
+   `rpc_sine_fix5.py`, `rpc_sine_fix5b.py`, `rpc_sine_fix6.py`,
+   `rpc_sine_fix6b.py`, `rpc_sine_fix6c.py`, `rpc_sine_fix7.py`:
+   one driver per experiment. Each has its own docstring with
+   the question, the design, and the result.
 5. `simulation-results.md`: the full record.
 6. `reviewer-pack.md`: a copy-paste adversarial prompt for other
    AI reviewers, with instructions to paste the full Chapter 3
@@ -92,8 +99,8 @@ no-plasticity control.
 
 ## Status
 
-Boundary firm as of Nov 25, 2026: fixed sine about 0.20,
-variable sine about 0.11, Lorenz about 0.07, all below the
-bars. The next decision is whether to stop, accept a trained
-readout (0.556 on the fixed sine), or try a graded confirmation
-signal.
+Boundary firm as of Nov 26, 2026: fixed sine about 0.20,
+variable sine about 0.11, Lorenz about 0.09, all below the
+bars. Graded confirmation (A16) is dead at 5 seeds. The next
+decision is whether to stop, accept a trained readout (0.556
+on the fixed sine), or try a dot-product readout.

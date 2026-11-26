@@ -1,0 +1,12 @@
+sine-fixed graded smooth3.0-alpha1.0 full: acc mean=0.154 range=[0.092,0.247] chance=0.031 mean_burst=0.141 mean_g=0.181 std_g=0.135 accs=[0.155, 0.247, 0.11, 0.092, 0.164]
+sine-fixed graded smooth3.0-alpha1.0 no-plasticity: acc mean=0.022 range=[0.010,0.049] chance=0.031 mean_burst=0.024 mean_g=0.041 std_g=0.064 accs=[0.049, 0.01, 0.024, 0.02, 0.011]
+sine-fixed graded smooth3.0-alpha0.7 full: acc mean=0.196 range=[0.136,0.249] chance=0.031 mean_burst=0.131 mean_g=0.322 std_g=0.103 accs=[0.204, 0.249, 0.136]
+sine-fixed graded smooth3.0-alpha0.7 no-plasticity: acc mean=0.027 range=[0.017,0.045] chance=0.031 mean_burst=0.022 mean_g=0.048 std_g=0.064 accs=[0.045, 0.02, 0.017]
+sine-fixed graded onehot-alpha1.0 full: acc mean=0.057 range=[0.028,0.075] chance=0.031 mean_burst=0.126 mean_g=0.061 std_g=0.104 accs=[0.069, 0.028, 0.075]
+sine-fixed graded onehot-alpha1.0 no-plasticity: acc mean=0.026 range=[0.014,0.042] chance=0.031 mean_burst=0.023 mean_g=0.043 std_g=0.068 accs=[0.014, 0.022, 0.042]
+planted graded alpha1.0 full: acc mean=0.068 range=[0.039,0.099] chance=0.0625 mean_burst=0.152 mean_g=0.048 std_g=0.071 accs=[0.099, 0.083, 0.07, 0.039, 0.05]
+planted graded alpha1.0 no-plasticity: acc mean=0.054 range=[0.040,0.065] chance=0.0625 mean_burst=0.025 mean_g=0.049 std_g=0.072 accs=[0.057, 0.065, 0.052, 0.04, 0.056]
+variable-sine graded smooth3.0 full: acc mean=0.108 range=[0.033,0.195] chance=0.031 mean_burst=0.136 mean_g=0.115 std_g=0.115 accs=[0.094, 0.195, 0.033]
+variable-sine graded smooth3.0 no-plasticity: acc mean=0.039 range=[0.024,0.052] chance=0.031 mean_burst=0.023 mean_g=0.044 std_g=0.068 accs=[0.052, 0.042, 0.024]
+sine-fixed graded smooth3.0 eta_b0.25 full: acc mean=0.220 range=[0.157,0.283] chance=0.031 mean_burst=0.125 mean_g=0.165 std_g=0.139 accs=[0.22, 0.283, 0.157]
+EXIT=0
