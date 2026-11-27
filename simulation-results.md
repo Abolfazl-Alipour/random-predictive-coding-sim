@@ -2077,3 +2077,488 @@ A24 (local signed prediction-error rule, delta) works on both tasks at n_out 256
 - Controls (43.4, 43.6): unsigned rules collapse to chance at n_out 256 without row-norm preservation; centering alone recovers partway (sine 0.151, planted 0.154); only the error term reaches the bars.
 
 What is still open: (1) planted accuracy is marginal against AGY's bar and below the strict bar; (2) variable sine, Lorenz, and the 1D track have not been run under delta; (3) alpha 1.0 and smooth sigma 3.0 were selected on the test set (third critique), so the delta win needs a validation split and more seeds before it is claimed (round 15 design: 20 seeds, train/validation/test split, random fixed W_dist1 control, label-shuffled readout); (4) the theory as written in Chapter 3 still has no error population, hierarchy, precision weighting, or omission test, so the delta result rescues this formalisation, not the Chapter 3 theory as stated.
+
+## 44. Round-14 critiques land: Kimi and AGY Gemini (Nov 26, 2026)
+
+Both critiques landed on Beast and are copied here as r14-kimi-critique.md (20,429 bytes) and r14-agy-critique.md (49,309 bytes). Both processes are gone. AGY Opus never ran (429 quota, resets about Dec 1); not retried.
+
+### 44.1 Shared verdict
+
+The delta win stands as a strong pilot result, not as a validated pass. Both reviewers agree on three points: (1) the planted 0.221 pass is threshold noise, it fails on fresh seeds; (2) the delta rule is local signed-error learning (normalised Widrow-Hoff / Urbanczik and Senn dendritic LMS), not Chapter 3's burst-confirmation mechanism, which is off or silent in every winning run (use_confirmation=False, s_inh=0.0, mean_burst=0.000 on sine); (3) the headline scores need a fresh-seed, zero-tuning replication before any claim.
+
+### 44.2 Kimi (r14-kimi-critique.md)
+
+- Delta is a verified within-study pilot effect; refuted as a confirmatory pass. Strongest doubt: adaptive test-set selection (alpha, sigma, width, rates chosen on the same test seeds), so the reported scores are optimistically biased. Sine 95% interval [0.340, 0.629] contains the 0.46 bar; planted interval [0.196, 0.246] contains 0.22.
+- Planted 0.221 is refuted as meaningfully above 0.22: unrounded mean 0.2212, only 0.0012 above the bar, 2 of 5 seeds below it. The revised 0.22 bar was chosen after seeing results and needs preregistration before a fresh confirmation.
+- Motif 0.966 is true-completion recall, not accuracy over every motif-prefix presentation: run_planted_motif counts a step only when the previous two tokens are a prefix AND the current token is the motif successor (rpc_planted_fix14c.py:62-68). Overwritten successors (6-15 per seed) are excluded.
+- Identical planted coactivity/burst scores verified as constant-output collapse, not a bug: distinct final matrices, 97.9-99.3% (coactivity) and 89.8-97.3% (burst) of entries at +2.0, both predicting one class on all 1,150 test steps. Confirms 43.6 with the saturation refinement.
+- Ridge probe configuration verified, but "no information; entirely readout alignment" refuted: paired differences [-0.006, +0.002, -0.011] on 3 seeds only show this unstandardised, no-intercept, lambda=1 ridge finds no gain. The clean claim is "consistent with converting already linearly decodable information into a p1-cosine-usable form."
+- Implementation is clamped NLMS (w_max=2.0, rpc_v2.py:503-506, 1067-1075), not AGY's specified unclamped or wide-clamp 10.0 rule. The rule-by-width factorial is incomplete: controls ran only at n_out 256.
+- Beating Markov-1 by +0.0254 is not robust: paired per-seed differences [-0.071, +0.080, +0.099, -0.022, +0.041], interval [-0.063, +0.114]. Markov-2 (0.802) is not scored on an identical denominator (markov_acc drops unseen contexts).
+- "Learns in noise" verified only as a narrow existence result on planted random filler; refuted as a general claim. Cheapest next test: variable-frequency sine under the exact frozen delta-256 config, no retuning.
+- A23 correction to 43.7: the A23 measurements are real, but 43.7 overstates them. A23 fits labelled class centroids from d1 (rpc_v2.py:780-800), so it is a supervised nearest-centroid readout, not an unlearned fixed readout. Its failure rejects A23 as a rescue, not the whole fixed-features-plus-fixed-readout family; A24 itself is a counterexample if version (a) means fixed random non-distal wires with distal plasticity.
+- Next experiment: preregistered fresh-seed, zero-tuning replication of the exact delta-256 config (including the w_max=2.0 clamp), 20 paired replications preferred, fresh sequence and network seeds, delta plus frozen and cov controls, Markov-1/2 on identical transitions, strict first-order delta ablation, all-prefix planted metrics.
+
+### 44.3 AGY Gemini (r14-agy-critique.md)
+
+AGY ran fresh diagnostics on Beast (review-venv, single-threaded CPU) and reports new numbers. These are reviewer-reported: no diagnostic output files were saved in the review directory, so they are recorded here as AGY-measured, not re-run by me.
+
+- Fresh-seed replication (10 untouched seeds 100-109, exact fix14c config): sine 0.467 vs frozen 0.031, planted 0.217 vs frozen 0.062. The learning gain over chance is real and not a selection mirage, but planted drops below the 0.22 bar (6/10 seeds below it; 15-seed mean 0.218) and smooth-sine ties Markov-1 (+0.006, 5/10 wins, p=0.72).
+- Biggest surprise: smooth_sigma=3.0 actively hurts delta. Plain one-hot (smooth_sigma=0.0, alpha=1.0) on 3 fresh sine seeds scores 0.847, beating Markov-2 (0.795). The 0.484 headline was capped by a toxic legacy hyperparameter, not by delta.
+- Motif 0.966 omits the first motif transition: m1 (1->2) scores only 0.628, all-motif 0.789. The m1 miss accounts for about 69% of the gap to Markov-1 (0.281). Filler steps score 0.059, below chance.
+- Sine 0.484 is not a 1-step ceiling: delta predicts direction on 99.4% of ambiguous middle bins, within 2 bins 96.5%. Even the noiseless oracle p1 scores only 0.563 (r=0.943 with delta), because smooth_sigma=3.0 blurs adjacent prototypes (adj_cos 0.952). split_proto on worst seed 0 jumps 0.348 to 0.760.
+- cov control is broken: rpc_v2.py:1082-1085 subtracts spatial per-step means (p1n - p1n.mean()), not temporal per-neuron means (Sejnowski 1977), and uses unnormalised eta_b, about 1,000x larger per-step updates than delta, slamming 44.0% (sine) and 17.9% (planted) of weights into the +-2.0 clamp. Fixed temporal-covariance Hebbian (zero error term) jumps planted from 0.154 to 0.199 overall and 0.939 on m2: 90% of delta's overall score and 97% of its m2 score with no error feedback. Delta's genuine planted advantage shrinks to m1 (0.628 vs 0.449).
+- Coactivity/burst byte-identity verified as no code bug, but a clamp confound: norm_rows=False pins 99.25% / 97.29% of weights at +2.0; restoring norm_rows=True still leaves both at chance (0.041 / 0.042 planted).
+- Ridge probe: configuration verified, mechanism framing refuted. Fixed lam=1.0 penalises trained d1 about 19x harder because delta shrinks ||d1|| 4.4x; standardised ridge gives trained 0.924 vs frozen 0.923. Frozen W_dist1 is almost surely invertible, so no linear matrix can exceed the linear decode of y2 (data processing inequality); delta performs online regression y2 -> p1, not rotation.
+- Six fix14 defects: cov centering/clamp bug; norm_rows=False clamp asymmetry for coactivity/burst; mean_burst=0.000 unreported in section 43; n_out=64 controls missing (2x2 factorial incomplete); m1 omitted and mean_burst unlogged in rpc_planted_fix14c.py; rpc_sine_fix14a/b_results.txt missing from the review directory (confirmed) and rpc_sine_fix14c_results.txt contains the pre-fix probe crash traceback (confirmed, lines 4-11).
+- Untested tasks, 1-seed checks: Lorenz 0.438 / 0.395 vs persistence 0.587 (fails); 1D track 0.489 / 0.597 vs persistence 0.776 (fails); variable sine 0.292 vs Markov-1 0.282 (barely ties). Bright spot: motif lag-2 0.208 vs Markov-1 0.088, 2.4x, the strongest multi-step-in-noise test.
+- Chapter 3 verdict: refuted. A24 is Urbanczik and Senn (2014) / normalised Widrow-Hoff LMS on a fixed echo-state reservoir. Nothing distinctive to Chapter 3 remains in the plasticity mechanism.
+- Cheapest next experiment: 20 fresh seeds (200-219), train/validation/test split by sequence, validation picks (alpha, smooth_sigma, eta_d), then one held-out test evaluation. Tasks: planted lag-1, planted lag-2, sine-fixed, baselines.py Lorenz (dt_eff=0.10) plus variable sine. Conditions: delta, fixed temporal-cov, burst with norm_rows=True, frozen. Bars on lower 95% CI bound: planted lag-1 > 0.22 with m1 >= 0.80 and m2 >= 0.90; lag-2 >= 0.20 and >= +0.10 over Markov-1; sine >= 0.80; Lorenz/var-sine beat persistence and Markov-1 on accuracy and MSE.
+
+### 44.4 Spot verification by me (Nov 26, 2026)
+
+Checked against rpc_v2.py and simulation-results.md, not taken on trust: w_max=2.0 default and delta clamp (rpc_v2.py:503-506, 1067-1075); cov spatial centering (rpc_v2.py:1082-1085); motif_acc scores only m2 transitions (rpc_planted_fix14c.py:62-68); mean_burst=0.000 for delta on sine (rpc_sine_fix14c_results.txt:1-2); sine config alpha=0.7, smooth_sigma=3.0, use_confirmation=False, s_inh=0.0 (rpc_sine_fix14c.py:30-32); headline scores match results files (sine accs [0.348, 0.629, 0.537, 0.383, 0.525], planted [0.197, 0.230, 0.247, 0.205, 0.227], motif 0.966); A23 fits labelled mean-d1 centroids from train data (rpc_v2.py:780-800); probe crash traceback present in rpc_sine_fix14c_results.txt:4-11; rpc_sine_fix14a/b_results.txt absent from the Beast review directory (confirmed by listing). AGY's and Kimi's own diagnostic numbers (fresh seeds, clamp fractions, temporal-cov 0.199, one-hot 0.847, oracle p1 0.563) are reviewer-reported with no saved output files, so they are not independently verified here.
+
+### 44.5 Status after the critiques
+
+Round 14's headline passes do not survive as stated: planted fails on fresh seeds, the 0.22 bar pass was noise, the motif metric hid m1, the cov control was invalid, and the sine score was capped by smooth_sigma=3.0. What survives and is stronger than the headline: delta genuinely learns (fresh-seed gains over chance hold), one-hot delta-256 hits 0.847 on sine and beats Markov-2, and delta learns full phase direction (99.4%). What dies: the claim that only the error term works on planted (temporal covariance reaches 90% of delta), the "readout alignment" framing of the probe, and any claim that A24 validates Chapter 3's burst-confirmation theory. Next step is the preregistered 20-fresh-seed validation-split replication both reviewers propose (round 15 design in 43.7, refined by AGY in 44.3). Not launched here; needs Reza's go-ahead on the exact protocol.
+
+## 45. Round 15: preregistered 20-seed replication (Nov 26, 2026)
+
+Full frozen protocol: PROTOCOL-R15.md. This section is the summary;
+the protocol file governs.
+
+### 45.1 Loop order and research verdict (context)
+
+Reza's standing order (Nov 26 16:38 PST): keep iterating in a loop,
+critique own work, use reviews, use own judgment for design decisions,
+use online resources and literature, do deep research like a neuro AI
+scientist, do not stop until a system works and learns based on the
+theory (thesis Chapter 3, random predictive coding). Tracked item
+goal_a9a871e81255.
+
+Deep research landed Nov 26 (report
+~/workspace/research_notes/predictive-coding-local-learning-rules-20261127-0039/report.md;
+page built as artifact predictive-coding-vs-local-error-learning):
+the defensible claim on current evidence is local error-driven
+learning on a fixed random reservoir, NOT predictive coding yet. A
+signed error term is necessary for predictive coding but is also the
+textbook rule for reservoirs, LMS/Widrow-Hoff, FORCE, and PCN
+backprop approximation, so round 14 separates signed-error from
+unsigned-Hebbian learning, not predictive coding from reservoir
+computing. Two record corrections: NLMS is Widrow-Hoff 1960, not
+Urbanczik-Senn 2014 (that rule is dendritic, error = somatic spike
+minus dendritic prediction of somatic rate); the unsigned burst gate
+has no literature support (Payeur et al 2021's rule is signed:
+burst = LTP, single spike = LTD). The cleanest separating experiment
+is the omission test with frozen weights (train, freeze, omit an
+expected element, decode the omitted identity from the omission
+window); a predictive-coding model shows a stimulus-specific omission
+response, a reservoir decays. Omission + causal top-down clamp +
+precision manipulation together are what would change the verdict.
+Those are round-16 material, not round 15. Round 15 answers "does
+delta replicate?" Round 16 answers "is it predictive coding?"
+
+### 45.2 Protocol (frozen before any round-15 test result)
+
+- Seeds 201..220 (20 seeds), NOT AGY's 200..219: seed 200's
+  round-14-config test scores were observed during the runtime sizing
+  run (planted delta-256 0.243, sine delta-256 0.541), so 201..220
+  keeps all 20 test seeds unseen. Val seeds 201..205.
+- Tasks (train/val/test): planted lag-1 200/50/50 K=16;
+  planted lag-2 200/50/50 K=16 (make_data_lag lag=2); sine-fixed
+  50/20/20 K=32; Lorenz (baselines.py, dt 0.01 stride 10) 200/50/50
+  K=32; variable sine (rpc_spatial.make_sine) 100/20/20 K=32.
+- Validation: 18 configs (alpha {0.7, 1.0} x smooth_sigma
+  {0.0, 2.0, 3.0} x eta_d {0.02, 0.05, 0.2}) on val seeds 201..205,
+  winner = highest mean val accuracy, frozen per task, used for all
+  test conditions. smooth_sigma is a REAL dimension on planted tasks
+  (Gaussian-bump input replaces one-hot, rpc_v2.py _encode), not a
+  no-op; an earlier draft of the protocol said otherwise and was
+  corrected before freezing.
+- Test conditions (n_out=256, full_code=True, use_confirmation=False,
+  s_inh=0.0, unmodified p1-prototype cosine readout, 5 epochs):
+  delta (A24), tempcov (A25, see 45.3), burst with norm_rows=True
+  (the only condition with norm_rows on), frozen.
+- Metrics: exact-bin accuracy everywhere; planted adds m1/m2/oth
+  (m1 = middle motif element, m2 = completing element, oth = rest)
+  and all-motif; Lorenz/var-sine add within-1-bin accuracy and
+  continuous MSE against persistence, Markov-1/2, ESN on identical
+  test sequences.
+- Bars (20-seed lower 95% CI bound unless stated): planted lag-1
+  lower CI above 0.22 (target 0.25), m1 mean >= 0.80, m2 mean >=
+  0.90, delta beats tempcov paired; planted lag-2 mean >= 0.20 and
+  >= +0.10 over Markov-1; sine-fixed mean >= 0.80; Lorenz/var-sine
+  beat persistence AND Markov-1 on accuracy AND MSE, gain >= +0.15
+  over frozen.
+
+### 45.3 A25: fixed temporal-covariance control
+
+New learn_rule="tempcov" in rpc_v2.py. Same outer-product form and
+same NLMS denominator (||y2_prev||^2 + 1) and eta_d as delta, so
+delta vs tempcov isolates the post term: error (p1 - d1) versus
+centred raw post (p1 - temporal mean of p1), with the pre code
+likewise centred on its temporal mean. The means are exponential
+moving averages (decay 0.99, effective window ~100 steps), updated
+AFTER the centred vectors are formed, initialised on the first
+training step (no update that step), and NOT reset per sequence
+(reset() only zeroes reservoir state). Raw p1, not standardised p1n.
+No graded factor, no W_dist1b update. Clamped at w_max=2.0 like
+delta; run() now returns clamp_frac (fraction of W_dist1 entries at
+the clamp) so a saturated clamp is visible.
+
+### 45.4 Execution and sizing (measured, not estimated)
+
+Timing run on the VM (Nov 26): planted delta-256 seed 200, 196 s;
+sine delta-256 seed 200, 291 s. Round 15 is ~850 runs x ~4 min =
+~57 CPU-hours. Runs on Beast (12 cores, review-venv torch 2.15.0,
+numpy 2.5.4), 10 workers (5 tasks x 2 seed-shards), ~6 h wall.
+Driver rpc_round15.py writes one JSON line per (task, phase,
+config/condition, seed) and skips completed lines, so a killed
+worker resumes. Fast smoke tests pass on the VM (var-sine bins
+reproduce make_sine exactly; tempcov/burst branches run on a tiny
+net; baselines sane: planted1 seed 201 Markov-1 0.274, ESN 0.273).
+Full 5-epoch smoke runs on Beast: [pending at section write time].
+
+### 45.5 Status
+
+Protocol frozen. Driver written and fast-smoke-tested. Validation
+phase launch pending the Beast full-smoke result.
+
+### 45.6 Threading fix (Nov 26, 18:24 PST)
+
+First smoke attempt crawled: Beast load 45 (connectome round-1
+jobs), each smoke process at 166% CPU, 2h28m CPU time in 89 min
+elapsed, only 1-2 output lines (planted delta, Lorenz delta +
+baselines). Diagnosis: torch/numpy BLAS thread oversubscription.
+The runs are tiny-matrix and single-threaded by nature; the
+default 12 threads per process spin-wait on barriers and burn CPU
+without progress. Fix: OMP/MKL/OpenBLAS/NumExpr threads set to 1
+and torch.set_num_threads(1) in rpc_round15.py (before the torch
+import), plus the same env in r15/monitor.py's launcher. Smoke
+processes killed and relaunched with the fix. The validation
+workers inherit the fix through the monitor. Smoke numbers so far
+(single val seed 201, round-14 config, NOT results): planted delta
+acc 0.239, m1 0.633, m2 0.946, oth 0.073; Lorenz delta acc 0.097,
+within1 0.310, MSE 72.3, against Markov-1 0.221, Markov-2 0.570,
+persistence 0.157, ESN 0.417 (MSE 14.6 / 1.5 / 13.3 / 3.8).
+
+### 45.7 Validation launched (Nov 26, 18:44 PST)
+
+Threading fix verified: all three smoke groups finished in ~20
+min wall (planted, sine, cont all end "SMOKE <group> DONE", no
+Traceback). Monitor run r15-monitor (run 2eb8b4d8) launched the
+validation phase: 10 workers (5 tasks x 2 seed-shards),
+PIDs 469953-469962, val_launched marker written. Smoke numbers
+(single val seed 201, round-14 config, NOT results): planted
+delta 0.239 (m1 0.633, m2 0.946, oth 0.073), tempcov 0.077 (m1
+0.000, m2 0.000, oth 0.100, burst 0.092), burst 0.096 (m1 0.137,
+m2 0.369); sine delta 0.503; Lorenz delta 0.097, within1 0.310,
+MSE 72.3 (Markov-2 0.570, ESN 0.417); varsine delta 0.143,
+within1 0.272, MSE 0.547 (Markov-1 0.289, Markov-2 0.526,
+persistence 0.134, ESN 0.413, ESN within1 0.758). Tempcov
+collapses on planted seed 201 (both motif steps zero).
+
+### 45.8 Validation complete, test launched (Nov 26, 20:44 PST)
+
+450/450 validation lines, no Tracebacks. Monitor run
+r15-monitor (run 7f2f7e39) picked winners and launched the test
+phase: 10 workers (5 tasks x 2 seed-shards), PIDs 492706-492715,
+test_launched marker written. Winners (val mean acc, 5 val
+seeds): planted1 alpha 1.0 / sigma 0.0 / eta_d 0.05 -> 0.229;
+planted2 alpha 1.0 / sigma 0.0 / eta_d 0.05 -> 0.218; sine
+alpha 1.0 / sigma 0.0 / eta_d 0.2 -> 0.863; lorenz alpha 0.7 /
+sigma 0.0 / eta_d 0.2 -> 0.164; varsine alpha 1.0 / sigma 2.0 /
+eta_d 0.02 -> 0.152. Validation picked one-hot (sigma 0.0) on
+4 of 5 tasks: the smooth input is out, confirming AGY's
+one-hot finding (sine val 0.863 vs the smooth 3.0 round-14
+headline 0.484). Planted winners sit at the 0.22 bar on
+validation; the 20-seed test decides. Lorenz and varsine
+winners are weak on validation (0.164, 0.152).
+
+## 46. Round 15: preregistered 20-seed replication (Nov 26, 2026)
+
+Protocol: PROTOCOL-R15.md. Seeds 201..220. Validation grid 18
+configs on val seeds 201..205, winners frozen per task, one
+held-out test evaluation, 20 seeds, 5 conditions (delta,
+tempcov, burst, frozen, baseline). 500 test lines, 0 errors.
+Analysis: r15/r15_analysis.md (verified against the JSONL:
+planted1 delta mean 0.2229 vs 0.223, sine delta 0.8681 vs
+0.868, planted1 m1 0.6805 vs 0.680).
+
+### 46.1 Planted lag-1
+
+Delta acc 0.223, CI [0.216, 0.230], m1 0.680, m2 0.956,
+all-motif 0.811. Tempcov 0.070, burst 0.071, frozen 0.059.
+Paired delta-frozen +0.164, CI [+0.155, +0.173]. Baselines
+(identical test seqs): Markov-1 0.274, Markov-2 0.267,
+persistence 0.046, ESN 0.275. Bars: lower CI > 0.22 FAIL
+(0.216), mean >= 0.25 FAIL, m1 >= 0.80 FAIL, m2 >= 0.90
+PASS, beats tempcov paired PASS. 2/5.
+
+### 46.2 Planted lag-2
+
+Delta acc 0.222, CI [0.216, 0.227]. Tempcov 0.070, burst
+0.069, frozen 0.062. Paired delta-frozen +0.159. Baselines:
+Markov-1 0.084, Markov-2 0.267, persistence 0.057, ESN 0.261.
+Bars: mean >= 0.20 PASS, mean >= Markov-1 + 0.10 PASS. 2/2.
+
+CORRECTION (Nov 26, found while building the round-16
+driver): the lag-2 m1 (0.264), m2 (0.050), and all-motif
+(0.261) numbers previously listed here are STRUCK. run_planted
+counts m1 when (prev, tok) is a motif pair and m2 when
+(prev2, prev, tok) is a motif triple: lag-1 definitions
+(rpc_round15.py:160-186, MOTIF_M1/M2 lines 55-56). At lag 2
+the motif elements sit at i, i+2, i+4 with fillers between,
+so those tests match only chance filler patterns. The true
+lag-2 motif accuracies were never measured in round 15. The
+overall accuracy (0.222), the paired differences, the
+baselines, and both bars do not depend on the m1/m2 split
+and stand unchanged. The round-16 driver detects motifs by
+pattern and reports the true lag-2 motif accuracies as a
+byproduct.
+
+### 46.3 Sine-fixed
+
+Delta acc 0.868, CI [0.851, 0.886]. Tempcov 0.083, burst
+0.048, frozen 0.036. Paired delta-frozen +0.832, CI [+0.813,
++0.852]. Baselines: Markov-1 0.456, Markov-2 0.798,
+persistence 0.124, ESN 0.940. Bar mean >= 0.80 PASS. 1/1.
+
+### 46.4 Lorenz
+
+Delta acc 0.164, within1 0.402, MSE 66.1. Tempcov 0.042,
+burst 0.052, frozen 0.037. Baselines: Markov-1 0.205,
+Markov-2 0.565, persistence 0.173, ESN 0.398; MSE Markov-1
+12.3, persistence 12.6, ESN 4.4. Bars: 0/5. Delta does not
+beat persistence on accuracy (0.164 < 0.173) or MSE, and its
+gain over frozen (+0.127) is below the +0.15 bar.
+
+### 46.5 Variable sine
+
+Delta acc 0.150, CI [0.138, 0.161], within1 0.324, MSE
+0.172. Tempcov 0.043, burst 0.053, frozen 0.043. Baselines:
+Markov-1 0.283, Markov-2 0.528, persistence 0.125, ESN
+0.385; MSE Markov-1 0.108, persistence 0.054, ESN 0.044.
+Bars: beats persistence on acc PASS (1/5); beats Markov-1
+on acc FAIL, beats persistence on MSE FAIL, beats Markov-1
+on MSE FAIL, gain >= +0.15 over frozen FAIL (actual
++0.107). The exact-bin accuracy flatters the predictor: its
+continuous error (MSE 0.172) is worse than repeating the
+last value (0.054).
+
+### 46.6 Verdict: 6/18 bars pass
+
+Delta genuinely learns on every task: it beats frozen on all
+five, with paired CIs all above zero (sine +0.832, planted
++0.164 / +0.159, Lorenz +0.127, varsine +0.107). Tempcov and
+burst collapse everywhere (0.04-0.08), so the signed error
+term is the active ingredient, not centering or width. Sine
+is a clean win: 0.868 beats Markov-1 (0.456) and Markov-2
+(0.798). Planted lag-1 is real but marginal: 0.223 mean,
+lower CI 0.216 misses the 0.22 bar by 0.004. The critics
+were right that round-14 planted was threshold noise; the
+fresh-seed mean is essentially unchanged (0.223 vs 0.221)
+and the preregistered bar as stated does not pass. The weak
+leg is m1 (0.680 vs the 0.80 bar); m2 (0.956) is strong.
+Continuous tasks are the wall: Lorenz and varsine fail to
+beat persistence or Markov-1 on accuracy or MSE. The trained
+readout still beats delta everywhere (ESN: planted 0.275 vs
+0.223, sine 0.940 vs 0.868, Lorenz 0.398 vs 0.164, varsine
+0.385 vs 0.150), so the readout gap survives: delta aligns
+the drive, but a trained linear readout extracts more.
+Clamp fractions are 0.0000 for delta on every task, so the
+w_max=2.0 clamp is not binding.
+
+What round 15 settles: the delta rule is a validated
+learning rule for discrete token tasks under a fixed
+prototype readout, with the signed error term established as
+the active ingredient. It does not settle: continuous
+prediction, the first motif step, or whether the mechanism
+is predictive coding (the omission test is still unrun).
+
+Next: round 16. Candidates: (a) the continuous-task wall
+(Lorenz / varsine under a continuous-valued readout or a
+different error signal); (b) the omission test with frozen
+weights, the cleanest Chapter 3 signature; (c) the readout
+gap (why the trained readout beats the fixed prototype
+readout, and whether a local rule can close it). Design
+pending Reza's call.
+
+## 47. Round 16: the omission test (design, Nov 26, 2026)
+
+Protocol: PROTOCOL-R16-OMISSION.md (frozen Nov 26, 2026).
+Driver: rpc_round16_omission.py. Smoke test:
+rpc_round16_smoke.py. Analyzer: r16/r16_analyze.py.
+Full 20-seed run NOT launched; it waits for Reza's decision.
+
+Question: experiment A of the deep-research report (section 6.2).
+Does the trained delta network hold a stimulus-specific,
+predictability-scaled prediction that survives a missing input?
+This is the cleanest test of whether delta is predictive coding
+rather than signed-error learning on a fixed random reservoir.
+
+Step alignment (verified from rpc_v2.py): d1(t) = W_dist1 @
+y2_prev is computed BEFORE the current token is fed in, so d1(t)
+predicts token t from the code of token t-1, and the delta update
+trains d1(t) to match p1(t). A blank input (zeros) makes the
+reservoir state decay (r_new = tanh(W_res @ r) at the winner
+alpha = 1.0), not reset. At the omission step t, d1(t) and pred(t)
+are UNAFFECTED by the blank, so the omission decode at t is
+identical to the normal prediction at that position. d1 does NOT
+feed back into the reservoirs, so there is no error unit and no
+top-down feedback into the state at test time: the omission
+response in this architecture IS the prediction itself. The test
+therefore measures whether a prediction exists as an internal
+state and persists after a missing input; it does not test error
+units or top-down causality (experiments B/C, separate rounds).
+
+Design: planted lag-1 and lag-2, K = 16, length 24, train 200,
+test 50, seeds 221..240 (fresh; reusing 201..220 would be mild
+peeking after round 15). Winner config frozen from round 15
+(alpha 1.0, sigma 0.0, eta_d 0.05). Conditions: delta, frozen.
+One pass per omission event (blank at one position only).
+Motif positions detected by pattern in the original sequence
+(this corrects round 15, which applied lag-1 definitions to
+lag-2 data; the true lag-2 motif accuracies were never
+measured). Measures: omission decode and cosine margin at t,
+generative continuation (decode of the motif completion c at
+t+1 for lag-1, t+2 for lag-2), filler-target t+1/t+2 controls
+(restricted to non-motif targets), shuffled-prototype decode,
+d1/p1 norms, error projection. Bars A1-A5 (primary, lag-1),
+A6-A7 (persistence, secondary), B1-B4 (lag-2). Verdict rule:
+A passes if A1-A5 pass; that is necessary but NOT sufficient
+for the Rao-Ballard claim (experiment B still needed).
+
+Smoke test (VM, 1 seed 221, 1 epoch, NOT results): alignment
+check PASSED (pred and d1 identical at the omission step; d1
+differs at t+1). Motif detection 2.32 m1/seq and 2.32 m2/seq
+(lag-1), 2.38/2.38 (lag-2). All metrics finite. Planted1 delta:
+omit_m2 0.793, omit_m1 0.414, omit_filler 0.040, cont_m1 0.388,
+margin_m2 0.198, shuf_m2 0.034. Planted1 frozen: omit_m2 0.112,
+cont_m1 0.172. Planted2 delta: omit_m2 0.807, omit_m1 0.479,
+cont_m1 0.412. Planted2 frozen: omit_m2 0.160, cont_m1 0.084.
+The omission decode at t equals the normal accuracy exactly in
+all four runs, as designed. The continuation is above chance
+for delta on both lags even at 1 epoch; the frozen continuation
+is also above chance (0.172 lag-1), so the analyzer reports the
+delta-minus-frozen continuation contrast alongside A7. The
+frozen m2 decode (0.112 lag-1, 0.160 lag-2) may make bars A3/B3
+tight; the margin bar is the sharper check. CLI path verified
+via --seeds 221-221 --epochs 1 (valid JSONL, resumable keys).
+Analyzer smoke-tested on the 1-seed output.
+
+Design corrections made after the first smoke run, before any
+full-run result: the t+1/t+2 controls were restricted to
+non-motif targets (an unrestricted t+1 target is sometimes
+another motif's element), and the lag-2 continuation was moved
+to t+2 (a filler sits between b and c at lag 2). Both are frozen
+in the protocol.
+
+LAUNCH (Nov 26, 2026, about 22:05 PT): Reza delegated the
+decision ("use your best judgment and do whatever you want, you
+can run whatever you want"). Omission test chosen, per the
+standing recommendation. Beast smoke re-run first (1 seed 221,
+1 epoch, planted1): reproduced the VM smoke numbers exactly
+(delta omit_m2 0.793, omit_m1 0.414, omit_filler 0.040,
+cont_m1 0.388; frozen omit_m2 0.112, cont_m1 0.172). Four
+workers launched (2 tasks x 2 seed-shards, seeds 221..240,
+winners from round 15, 5 epochs, one BLAS thread each):
+planted1 221-230, planted1 231-240, planted2 221-230,
+planted2 231-240. Monitor cron r16-monitor created (every
+30 min, runs r16/monitor.py, runs the analyzer at 80 lines).
+
+Launch incident: the first launch command put the PY assignment
+inside a backgrounded && list, so three of the four workers
+started with PY unset and died at once (nohup: failed to run
+command 'rpc_round16_omission.py'). The planted1 221-230 worker
+ran, but it ran TWICE concurrently (a mangled earlier launch
+attempt had also started it): seeds 228-230 were written twice,
+6 duplicate lines, 26 lines instead of 20. The duplicate pairs
+were verified byte-identical (same seed gives the same data and
+init, so a re-run reproduces the record exactly) and the file
+was deduplicated to its 20 unique records before any analysis.
+The three failed workers were relaunched with PY set before any
+backgrounding (PIDs 500931-500933, verified alive with the
+correct args). Lesson: set all variables before the first & in
+a multi-worker launch, and always check line counts per shard
+against seeds x conditions before analysis.
+
+## 48. Round 16: the omission test (results, Nov 26, 2026)
+
+Protocol: PROTOCOL-R16-OMISSION.md. Driver:
+rpc_round16_omission.py. Analyzer: r16/r16_analyze.py.
+Analysis: r16/r16_analysis.md (60 lines). 80/80 test lines
+(2 tasks x 2 conditions x 20 seeds), 0 duplicate keys after
+the launch dedupe, 0 worker Tracebacks. Headline means
+recomputed independently from the JSONL by the parent and
+match the analysis to 3 decimals (planted1 delta omit_m2
+0.9663, omit_m1 0.6667, cont_m1 0.6098; planted2 delta
+omit_m2 0.9426, omit_m1 0.6778, cont_m1 0.4670; frozen
+omit_m2 0.0485 / 0.0577). All runs epochs 5, round-15
+winner config (alpha 1.0, sigma 0.0, eta_d 0.05). Chance
+1/16 = 0.0625.
+
+VERDICT: 11/11 bars pass. Experiment A passes all five
+lag-1 bars (A1-A5), plus A6, A7, and all four lag-2 bars
+(B1-B4).
+
+Planted lag-1, delta: omit_m2 0.966, CI [0.955, 0.977];
+omit_m1 0.667, CI [0.622, 0.711]; omit_filler 0.059, CI
+[0.046, 0.072]; cont_m1 0.610, CI [0.569, 0.651];
+margin_m2 0.345, CI [0.332, 0.359]; shuf_m2 0.001, CI
+[-0.001, 0.003]; normal_m2 0.966 (identical to omit_m2, as
+designed). Frozen: omit_m2 0.048, CI [0.031, 0.066];
+omit_m1 0.058; omit_filler 0.064; cont_m1 0.048, CI
+[0.027, 0.069]; margin_m2 -0.004; shuf_m2 0.087.
+Paired: delta omit_m2 - omit_filler +0.907, CI
+[+0.888, +0.927]; delta cont_m1 - t1_filler +0.560, CI
+[+0.518, +0.602]; delta - frozen cont_m1 +0.562, CI
+[+0.512, +0.612].
+
+Planted lag-2, delta: omit_m2 0.943, CI [0.928, 0.957];
+omit_m1 0.678, CI [0.647, 0.709]; omit_filler 0.089, CI
+[0.071, 0.107]; cont_m1 0.467, CI [0.424, 0.510];
+margin_m2 0.293, CI [0.277, 0.309]; shuf_m2 0.006;
+normal_m2 0.943. Frozen: omit_m2 0.058, CI [0.031, 0.084];
+cont_m1 0.049. Paired: delta omit_m2 - omit_filler
++0.854, CI [+0.827, +0.880]; delta cont_m1 - t1_filler
++0.397, CI [+0.346, +0.448]; delta - frozen cont_m1
++0.418, CI [+0.372, +0.465].
+
+Bars: A1 omit_m2 mean >= 0.80, lower CI > 0.50 PASS.
+A2 omit_m2 - filler paired mean > 0.30, CI above 0 PASS.
+A3 frozen omit_m2 mean < 0.15, margin < 0.05 PASS.
+A4 shuf_m2 mean < 0.15 PASS. A5 omit_m1 mean >= 0.50,
+lower CI > 0.25 PASS. A6 cont_m1 lower CI > chance PASS.
+A7 cont_m1 - t1_filler paired CI above 0 PASS. B1 omit_m2
+lower CI > chance PASS. B2 omit_m2 - filler paired CI
+above 0 PASS. B3 frozen omit_m2 mean < 0.15 PASS.
+B4 cont_m1 lower CI > chance PASS.
+
+What this settles: the trained delta network holds a
+stimulus-specific prediction as an internal state that
+survives a missing input and generates the completion.
+The prediction is specific (m2 0.966 vs filler 0.059,
+margin 0.345, shuffled prototypes 0.001), it covers the
+first motif step too (m1 0.667 lag-1, 0.678 lag-2, both
+above their 0.50 bars), and it generates forward
+(continuation 0.610 lag-1 and 0.467 lag-2, both far above
+chance and above the frozen continuation 0.048/0.049,
+paired gaps +0.562/+0.418). The smoke-test worry did not
+materialize: the frozen omit_m2 at 20 seeds is 0.048/0.058,
+not the 0.112/0.160 seen on one seed, so bars A3/B3 pass
+with room.
+
+What this does NOT settle (unchanged from the protocol):
+the omission decode at t equals the normal prediction by
+construction (omit_m2 == normal_m2 exactly on both tasks),
+so the test measures whether a prediction exists and
+persists, not whether error units compute it or top-down
+feedback causes it. This architecture has no error unit
+and d1 never feeds back into the reservoirs at test time,
+so a pass is necessary but not sufficient for the
+Rao-Ballard predictive-coding claim. The next discriminator
+is experiment B (causal top-down clamp), then precision (C)
+and generative (D) tests. The continuous-task wall
+(Lorenz/var-sine) also still stands from round 15.

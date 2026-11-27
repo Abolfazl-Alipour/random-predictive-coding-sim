@@ -1,0 +1,50 @@
+{"task": "sine", "phase": "test", "config": "delta", "seed": 201, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8721105527638191, "mean_burst": 0.000541015625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 201, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.07788944723618091, "mean_burst": 0.1176708984375, "clamp_frac": 0.003936767578125}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 201, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.0678391959798995, "mean_burst": 0.1456962890625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 201, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.03015075376884422, "mean_burst": 0.02500390625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 201, "markov1_acc": 0.39949748743718594, "markov2_acc": 0.8165829145728644, "persist_acc": 0.11984924623115578, "esn_acc": 0.9349246231155779}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 202, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8625628140703517, "mean_burst": 0.00010546875, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 202, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.10854271356783919, "mean_burst": 0.1211650390625, "clamp_frac": 0.0070037841796875}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 202, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.010050251256281407, "mean_burst": 0.1450322265625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 202, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.016582914572864323, "mean_burst": 0.0267109375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 202, "markov1_acc": 0.42989949748743717, "markov2_acc": 0.757035175879397, "persist_acc": 0.11984924623115578, "esn_acc": 0.9175879396984925}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 203, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8530150753768844, "mean_burst": 8.10546875e-05, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 203, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.07412060301507538, "mean_burst": 0.110134765625, "clamp_frac": 0.006439208984375}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 203, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.01507537688442211, "mean_burst": 0.1392080078125, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 203, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.015326633165829147, "mean_burst": 0.0277001953125, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 203, "markov1_acc": 0.47537688442211057, "markov2_acc": 0.7577889447236181, "persist_acc": 0.13040201005025126, "esn_acc": 0.921105527638191}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 204, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8293969849246231, "mean_burst": 0.0001962890625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 204, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.038944723618090454, "mean_burst": 0.1266865234375, "clamp_frac": 0.0038909912109375}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 204, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.11256281407035176, "mean_burst": 0.1572177734375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 204, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.04396984924623116, "mean_burst": 0.0244853515625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 204, "markov1_acc": 0.4743718592964824, "markov2_acc": 0.8090452261306532, "persist_acc": 0.12010050251256281, "esn_acc": 0.9459798994974874}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 205, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8932160804020101, "mean_burst": 0.000130859375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 205, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.1120603015075377, "mean_burst": 0.1066083984375, "clamp_frac": 0.0046539306640625}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 205, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.02964824120603015, "mean_burst": 0.1435986328125, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 205, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.02386934673366834, "mean_burst": 0.0244560546875, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 205, "markov1_acc": 0.4492462311557789, "markov2_acc": 0.8170854271356784, "persist_acc": 0.12412060301507538, "esn_acc": 0.9567839195979899}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 206, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8869346733668342, "mean_burst": 6.4453125e-05, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 206, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.053768844221105526, "mean_burst": 0.107830078125, "clamp_frac": 0.0030975341796875}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 206, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.02512562814070352, "mean_burst": 0.1429794921875, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 206, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.013567839195979899, "mean_burst": 0.025583984375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 206, "markov1_acc": 0.47462311557788944, "markov2_acc": 0.8386934673366834, "persist_acc": 0.11482412060301507, "esn_acc": 0.9248743718592964}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 207, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8477386934673367, "mean_burst": 0.0001630859375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 207, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.11105527638190955, "mean_burst": 0.114861328125, "clamp_frac": 0.00445556640625}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 207, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.03919597989949749, "mean_burst": 0.1425380859375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 207, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.06708542713567839, "mean_burst": 0.0255419921875, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 207, "markov1_acc": 0.45452261306532665, "markov2_acc": 0.7690954773869346, "persist_acc": 0.13442211055276382, "esn_acc": 0.9489949748743719}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 208, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8932160804020101, "mean_burst": 0.000197265625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 208, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.0457286432160804, "mean_burst": 0.1114091796875, "clamp_frac": 0.0062713623046875}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 208, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.02236180904522613, "mean_burst": 0.1415068359375, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 208, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.018844221105527637, "mean_burst": 0.02422265625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 208, "markov1_acc": 0.4851758793969849, "markov2_acc": 0.7962311557788945, "persist_acc": 0.12010050251256281, "esn_acc": 0.9525125628140704}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 209, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.8751256281407035, "mean_burst": 5.6640625e-05, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 209, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.05226130653266332, "mean_burst": 0.131123046875, "clamp_frac": 0.0067291259765625}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 209, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.05150753768844221, "mean_burst": 0.1524580078125, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 209, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.0371859296482412, "mean_burst": 0.0251513671875, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 209, "markov1_acc": 0.46457286432160805, "markov2_acc": 0.7788944723618091, "persist_acc": 0.13517587939698492, "esn_acc": 0.9266331658291457}
+{"task": "sine", "phase": "test", "config": "delta", "seed": 210, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.871356783919598, "mean_burst": 0.000291015625, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "tempcov", "seed": 210, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.08768844221105528, "mean_burst": 0.1037861328125, "clamp_frac": 0.00360107421875}
+{"task": "sine", "phase": "test", "config": "burst", "seed": 210, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.020100502512562814, "mean_burst": 0.142486328125, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "frozen", "seed": 210, "alpha": 1.0, "smooth_sigma": 0.0, "eta_d": 0.2, "acc": 0.028391959798994976, "mean_burst": 0.0229345703125, "clamp_frac": 0.0}
+{"task": "sine", "phase": "test", "config": "baseline", "seed": 210, "markov1_acc": 0.44597989949748745, "markov2_acc": 0.8125628140703518, "persist_acc": 0.12562814070351758, "esn_acc": 0.9507537688442211}

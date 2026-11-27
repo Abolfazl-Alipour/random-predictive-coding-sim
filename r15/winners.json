@@ -1,0 +1,32 @@
+{
+  "planted1": {
+    "alpha": 1.0,
+    "smooth_sigma": 0.0,
+    "eta_d": 0.05,
+    "val_mean_acc": 0.22921739130434782
+  },
+  "planted2": {
+    "alpha": 1.0,
+    "smooth_sigma": 0.0,
+    "eta_d": 0.05,
+    "val_mean_acc": 0.21826086956521742
+  },
+  "sine": {
+    "alpha": 1.0,
+    "smooth_sigma": 0.0,
+    "eta_d": 0.2,
+    "val_mean_acc": 0.8631155778894473
+  },
+  "lorenz": {
+    "alpha": 0.7,
+    "smooth_sigma": 0.0,
+    "eta_d": 0.2,
+    "val_mean_acc": 0.16417391304347825
+  },
+  "varsine": {
+    "alpha": 1.0,
+    "smooth_sigma": 2.0,
+    "eta_d": 0.02,
+    "val_mean_acc": 0.1518181818181818
+  }
+}

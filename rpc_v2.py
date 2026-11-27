@@ -512,7 +512,7 @@ class RPCNetwork(torch.nn.Module):
                  learn_prox1=False, split_proto=False, graded_conf=False,
                  dot_proto=False, full_code=False, knn_readout=False,
                  pre_sharpen=0.0, read_sharpen=0.0, proto_proj=False,
-                 drive_proto=False):
+                 drive_proto=False, ema_decay=0.99):
         # center_proto: subtract the mean prototype (over classes that
         # appear in train) from every prototype and from d1 before the
         # cosine prediction. Train-data means only, no new learned
@@ -539,6 +539,16 @@ class RPCNetwork(torch.nn.Module):
         self.theta_p, self.theta_d, self.theta_f = theta_p, theta_d, theta_f
         self.eta_b, self.eta_c, self.w_max = eta_b, eta_c, w_max
         self.eta_d = eta_d  # A24: delta-rule step size.
+        # A25 (round 15): temporal-mean state for the tempcov rule.
+        # Exponential moving averages of the raw post pattern p1 and
+        # the pre code y2_prev, over the training stream only. Set in
+        # __init__ (None) and NOT touched by reset(), so the means
+        # accumulate across sequences within one run() call; a fresh
+        # RPCNetwork per run() call restarts them. ema_decay is the
+        # per-step retention (0.99: effective window ~100 steps).
+        self.ema_decay = ema_decay
+        self.p1_ema = None
+        self.y2_ema = None
         self.learn_rule = learn_rule
         # A12: fit W_prox by ridge regression (fit_prox) instead of
         # leaving it random. Set by run() before calibrate().
@@ -1087,6 +1097,39 @@ class RPCNetwork(torch.nn.Module):
                         n = self.W_dist1.norm(dim=1,
                                               keepdim=True).clamp(min=1e-9)
                         self.W_dist1.mul_(self.W_dist1_row0[:, None] / n)
+                elif self.learn_rule == "tempcov":
+                    # A25 (round 15): fixed temporal-covariance
+                    # control. Same outer-product form and same NLMS
+                    # denominator and eta_d as delta, so delta vs
+                    # tempcov isolates the post term: error (p1 - d1)
+                    # versus centred raw post (p1 - temporal mean of
+                    # p1), with the pre code likewise centred on its
+                    # temporal mean. The means are exponential moving
+                    # averages updated AFTER the centred vectors are
+                    # formed (the mean used at step t covers steps
+                    # before t); the first training step sets the
+                    # means and makes no update. No graded factor g,
+                    # no W_dist1b update. Clamped at w_max like
+                    # delta; the clamp fraction is reported by run().
+                    if self.p1_ema is None:
+                        self.p1_ema = p1.clone()
+                        self.y2_ema = self.y2_prev.clone()
+                    else:
+                        post = p1 - self.p1_ema
+                        pre = self.y2_prev - self.y2_ema
+                        denom = float(self.y2_prev @ self.y2_prev) + 1.0
+                        self.W_dist1 += ((self.eta_d / denom) *
+                                         torch.outer(post, pre))
+                        self.W_dist1.clamp_(-self.w_max, self.w_max)
+                        if self.norm_rows:
+                            n = self.W_dist1.norm(
+                                dim=1, keepdim=True).clamp(min=1e-9)
+                            self.W_dist1.mul_(
+                                self.W_dist1_row0[:, None] / n)
+                        self.p1_ema.mul_(self.ema_decay).add_(
+                            p1, alpha=1 - self.ema_decay)
+                        self.y2_ema.mul_(self.ema_decay).add_(
+                            self.y2_prev, alpha=1 - self.ema_decay)
                 else:
                     if self.learn_rule == "coactivity":
                         # A8: ungated co-activity ("hit and solidify").
@@ -1192,7 +1235,12 @@ def run(train_data, test_data, epochs=5, **kw):
     return {"acc": correct / max(total, 1), "chance": 1 / net.K,
             "mean_burst": float(np.mean(bursts)),
             "mean_y2": float(np.mean(y2s)), "cal": cal,
-            "mean_g": float(np.mean(gs)), "std_g": float(np.std(gs))}
+            "mean_g": float(np.mean(gs)), "std_g": float(np.std(gs)),
+            # A25: fraction of W_dist1 entries at the w_max clamp
+            # after training. Verifies the clamp does not bind (a
+            # saturated clamp would cap the rule's effective step).
+            "clamp_frac": float((net.W_dist1.abs() >=
+                                 net.w_max - 1e-6).float().mean())}
 
 def run_vec(train_data, test_data, epochs=5, **kw):
     """run() for continuous vector inputs. Sequences are lists of

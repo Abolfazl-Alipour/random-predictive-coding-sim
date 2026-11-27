@@ -245,3 +245,38 @@ planted accuracy marginal; variable sine, Lorenz, and the
 1D track untested under delta; alpha 1.0 and smooth 3.0
 were selected on the test set, so round 15 needs a
 validation split and 20 seeds before the win is claimed.
+
+Round 15 COMPLETE Nov 26, 21:36 PST (record section 46,
+analysis r15/r15_analysis.md). Preregistered 20-seed
+replication, seeds 201..220, validation grid 18 configs,
+winners frozen per task, 500 test lines, 0 errors. Winners:
+planted1 0.229, planted2 0.218, sine 0.863, Lorenz 0.164,
+varsine 0.152 (val mean acc); validation picked one-hot
+(sigma 0.0) on 4 of 5 tasks. Test verdict, 6/18 bars pass:
+sine delta 0.868 (CI 0.851-0.886) beats Markov-1 0.456 and
+Markov-2 0.798, clean win; planted lag-1 delta 0.223 (CI
+0.216-0.230) misses the lower-CI 0.22 bar by 0.004, m1 0.680
+misses 0.80, m2 0.956 passes 0.90; planted lag-2 delta 0.222
+passes both bars; Lorenz delta 0.164 and varsine delta 0.150
+fail to beat persistence or Markov-1 on accuracy or MSE.
+Delta beats frozen on all five tasks (paired CIs all above
+zero); tempcov and burst collapse everywhere (0.04-0.08), so
+the signed error term is the active ingredient. The trained
+readout (ESN) still beats delta on every task, so the readout
+gap survives. What is settled: delta is a validated learning
+rule for discrete token tasks under a fixed prototype readout.
+What is not: continuous prediction, the first motif step, and
+whether the mechanism is predictive coding (omission test
+still unrun). Round 16 (the omission test, PROTOCOL-R16-
+OMISSION.md) COMPLETE Nov 26, 2026 about 22:45 PT: 11/11 bars
+pass. Experiment A passes all five lag-1 bars plus A6, A7 and
+all four lag-2 bars. Planted lag-1 delta omit_m2 0.966 (CI
+0.955-0.977), omit_m1 0.667, continuation 0.610; lag-2 delta
+omit_m2 0.943, omit_m1 0.678, continuation 0.467; frozen
+0.048/0.058. The trained network holds a stimulus-specific
+prediction that survives a missing input and generates the
+completion. Limit stands: no error unit and no top-down
+feedback at test time, so this is necessary but not sufficient
+for the Rao-Ballard claim; next discriminator is the top-down
+clamp (experiment B). The r16-monitor cron is removed; the
+analysis is delivered.

@@ -6,7 +6,7 @@ critiques (`kimi-critique.md`, `agy-critique.md`), and the third external
 critique (`external-critique-3.md`). The review pack is on Beast at
 `/home/reza/zfs-1tb/rpc-sim/review/`. The public repo is
 https://github.com/Abolfazl-Alipour/random-predictive-coding-sim (head
-ac8b34c4 at brief time; round 14 push follows).
+6b99f3ba, round 14 pushed Nov 26, 2026).
 
 ## What round 14 claims
 
