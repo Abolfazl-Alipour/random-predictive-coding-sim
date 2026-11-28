@@ -1,0 +1,16 @@
+{
+  "lorenz": {
+    "alpha": 0.7,
+    "smooth_sigma": 0.0,
+    "eta_d": 0.2,
+    "bump_sigma": 2.0,
+    "val_mse": 7.082011229249792
+  },
+  "varsine": {
+    "alpha": 1.0,
+    "smooth_sigma": 2.0,
+    "eta_d": 0.02,
+    "bump_sigma": 3.0,
+    "val_mse": 0.03555729134553662
+  }
+}

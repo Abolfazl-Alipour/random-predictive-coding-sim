@@ -2347,6 +2347,35 @@ on MSE FAIL, gain >= +0.15 over frozen FAIL (actual
 continuous error (MSE 0.172) is worse than repeating the
 last value (0.054).
 
+CORRECTION (Nov 26, found while designing round 18): the
+Lorenz (46.4) and var-sine (46.5) numbers above are STRUCK
+as scored. rpc_round15.py run_cont collects out["pred"] at
+step t and scores it with baselines.py accuracy, which
+compares p[t] to seq[t+1]. But _step_core computes d1(t)
+from y2_prev before the current token is fed in
+(rpc_v2.py:1122-1126), and run() scores out["pred"] against
+the CURRENT token (rpc_v2.py:1330-1340). So pred(t)
+predicts token t, and run_cont scored it against token t+1:
+a two-step-ahead task. The baselines (Markov-1/2,
+persistence, ESN) predict t+1 from tokens 0..t: true
+one-step-ahead. The same shift sits in within1
+(rpc_round15.py:219-222) and in mse_from_bin_preds
+(baselines.py:322-330, whose docstring wrongly claims
+"preds[t] predicts token t+1"). Round 15 therefore compared
+RPC's two-step-ahead accuracy, within-1, and MSE against the
+baselines' one-step-ahead accuracy, within-1, and MSE on
+Lorenz and var-sine ONLY. The discrete-task numbers (46.1
+planted, 46.3 sine) use run() and are unaffected. The
+"continuous-task wall" verdict in 46.6 is withdrawn pending
+round 18, which re-scores correctly at 20 seeds. The
+1-seed diagnostic (seed 261, 5 epochs, round-15 winner
+configs, NOT a result): Lorenz correct scoring acc 0.285 /
+MSE 35.1 vs mis-scored 0.149 / 74.6; var-sine correct 0.319
+/ 0.042 vs mis-scored 0.146 / 0.142; sine control correct
+0.864 vs mis-scored 0.124. The wall may dissolve on
+accuracy; the Lorenz MSE wall may survive. Round 18
+decides.
+
 ### 46.6 Verdict: 6/18 bars pass
 
 Delta genuinely learns on every task: it beats frozen on all
@@ -2562,3 +2591,2413 @@ Rao-Ballard predictive-coding claim. The next discriminator
 is experiment B (causal top-down clamp), then precision (C)
 and generative (D) tests. The continuous-task wall
 (Lorenz/var-sine) also still stands from round 15.
+
+## 49. Round 17: the top-down clamp (design, Nov 26, 2026)
+
+Protocol: PROTOCOL-R17-CLAMP.md (frozen Nov 26, 2026).
+Driver: rpc_round17_clamp.py. Analyzer: r17/r17_analyze.py.
+Monitor: r17/monitor.py. Full 20-seed run NOT launched; it
+waits for Reza's decision.
+
+Question: experiment B of the deep-research report (sections
+1.4-1.5). Round 16 showed the trained delta network holds a
+stimulus-specific prediction that survives a missing input.
+Round 17 asks whether that prediction does any work: cut it,
+shuffle it, and see whether the lower module notices.
+
+The architectural fact: in the current model there is NO
+top-down pathway. d1 is computed, used for the readout and
+for the delta rule, and never fed back into either module
+(verified from rpc_v2.py _step_core and
+ReservoirModule.forward). A literal clamp test cannot run on
+it: there is nothing to clamp. So round 17 has two parts.
+Part 1 (assumption A26) adds the wire; part 2 clamps it.
+
+A26: fixed random matrix W_fb (n_res x n_out), entries
+randn / sqrt(n_out), never trained. fb = fb_gain *
+(W_fb @ d1), added into module 1's reservoir drive
+alongside the bottom-up input. d1 at step t predicts token
+t, so the feedback arriving with the input is the
+prediction of that input: the Rao-Ballard form. Default
+fb_gain = 0.0. W_fb and the shuffle permutation are drawn
+after all other init draws, so fb_gain = 0.0 reproduces
+every previous result exactly (verified: the round-16
+smoke test reproduces its numbers exactly after the A26
+edit, section 49.1). Test-time modes via step(fb_mode):
+"on", "cut" (fb = 0), "shuffle" (fixed random permutation
+of d1's coordinates, same magnitude, no information).
+
+Scale (measured): trained delta d1 norm 1.6-1.9, bottom-up
+drive norm about 2.3, so fb_gain 1.0 matches the
+bottom-up drive, 0.3 is about a fifth, 0.1 about a
+twentieth. The driver records RMS(fb) / RMS(bottom-up)
+per run.
+
+Design: planted lag-1 and lag-2, K = 16, round-15 winner
+config (alpha 1.0, sigma 0.0, eta_d 0.05), n_out 256,
+5 epochs, seeds 241..260 (fresh). Validation: fb_gain in
+{0.1, 0.3, 1.0} on val seeds 241..245, planted lag-1,
+winner = highest mean val normal accuracy, guard: winner
+>= 0.80 x the fb_gain = 0.0 val accuracy, else the round
+stops with "the wire destabilizes learning". Test
+conditions (3 nets per (task, seed); conditions 2-3 are
+test-only passes on condition 1's net): 1. wire-on tested
+wire-on; 2. wire-on tested wire-cut; 3. wire-on tested
+wire-shuffled; 4. wire-off (fb_gain = 0, round-16 config
+on the new seeds); 5. frozen wire-on. Measures: the
+round-16 omission measures plus p1_cos (mean cosine
+between p1 wire-on and wire-cut on identical sequences),
+err_mag (mean ||p1 - d1||, first and last epoch),
+fb_rms_ratio, r1_max, clamp_frac. Bars: C1 cut degrades
+omit_m2 by >= 0.10 (paired, CI above 0); C2 shuffle
+degrades omit_m2 by >= 0.10; C3 p1_cos mean < 0.90;
+C4 wire-off omit_m2 differs (paired CI excludes 0);
+C5 guard wire-on normal accuracy >= 0.80 x wire-off.
+Experiment B passes if C1-C4 pass on lag-1.
+
+### 49.1 Smoke test (VM, 1 seed 241, 1 epoch, NOT results)
+
+All four protocol checks pass. (1) fb_gain = 0.0
+reproduces round 16 exactly: normal_acc_m2 0.855 and
+omit_m2 0.855, identical to the round-16 driver on the
+same seed. (2) Wire-on changes p1: p1_cos (on vs cut) =
+0.962. (3) All metrics finite, no NaN, r1_max = 0.91,
+clamp_frac = 0.0000. (4) fb_rms on = 0.277, shuffle =
+0.281 (within 5%), cut = 0.000. The analyzer was
+smoke-tested on the 1-seed driver output (val + test,
+planted1 only): it picks the winner, applies the guard,
+and writes the analysis file with real numbers.
+
+Smoke numbers (1 seed, 1 epoch, NOT results): wire-on
+omit_m2 0.735, omit_m1 0.402, cont_m1 0.453,
+normal_acc 0.167; wire-cut omit_m2 0.803, omit_m1 0.496;
+wire-shuffle omit_m2 0.761; wire-off omit_m2 0.855;
+frozen omit_m2 0.043. Honest note: at 1 epoch the wire
+HURTS the omission decode (cut beats on by 0.068) and the
+wire-on val accuracy (0.181) sits below wire-off (0.194).
+That is expected at 1 epoch: W_dist1 is barely trained,
+so d1 is a poor prediction feeding noise into module 1.
+Whether the trained prediction helps or hurts is what the
+5-epoch, 20-seed run decides; C1/C5 are built to catch
+either outcome. Do not read the smoke numbers as a result.
+
+LAUNCH (Nov 26, 2026, about 23:05 PT): Reza ordered "do all
+together, do not stop, keep going, do not stop for my approval,
+continue until the question is completely clear and killed".
+Beast smoke re-run first (rpc_round17_smoke.py): reproduced
+the VM smoke numbers exactly (wire-on omit_m2 0.735, cut
+0.803, shuffle 0.761; checks 3 and 4 passed, r1_max 0.91,
+clamp_frac 0.0000, fb_rms on 0.277 / shuffle 0.281 / cut
+0.000). Four validation workers launched (planted1, seeds
+241-245, fb_gain 0.0/0.1/0.3/1.0, PIDs 517179-517182,
+verified alive with the correct args; the round-16 lesson
+held, variables set before the first &). Monitor cron
+r17-monitor created (every 30 min; drives val -> winner
+pick with the 0.80x guard -> test launch -> analysis at 200
+lines). The monitor launches the test phase, not the main
+agent. VAL WINNER (Nov 26, 2026, 23:44 PT, verified from the
+Beast val files by the main agent): 20/20 val lines.
+fb_gain 0.0 val_acc 0.227, 0.1 0.226, 0.3 0.221, 1.0 0.182.
+Winner fb_gain 0.1, guard PASS (0.226 >= 0.80 x 0.227).
+Strong feedback hurts (1.0 drops to 0.182); gentle
+feedback (0.1) is a tie with no wire on validation
+accuracy. Test phase LAUNCHED (4 workers, planted1 and
+planted2, seeds 241-260, fb_gain 0.1, PIDs 524053-524056,
+verified alive with the correct args; 0 test lines yet,
+workers started about 1 minute before the check). The
+monitor drives the rest (analysis at 200 lines). Round 18
+val runs in parallel on Beast.
+
+## 50. Round 18 design: the continuous-task wall (scoring correction + readout/input separation) (Nov 26, 2026)
+
+Question: does the delta rule fail on continuous prediction,
+or did round 15 score it wrong? Code fact, verified by the
+main agent against the files: in _step_core, d1(t) is
+computed from y2_prev before token t is fed in, and delta
+trains d1(t) to match p1(t), so out["pred"] at step t
+predicts token t, and run() scores it that way
+(rpc_v2.py:1122-1126, 1330-1340). Bug: rpc_round15.py
+run_cont collects p[t] and scores it with baselines.py
+accuracy, which compares p[t] to seq[t+1]: a two-step-ahead
+task, while all baselines are true one-step-ahead predictors.
+The same shift sits in within1 and in mse_from_bin_preds
+(baselines.py:322-330, whose docstring wrongly claims
+"preds[t] predicts token t+1"). Section 46.4-46.5 numbers
+are STRUCK as scored; the continuous-wall verdict is
+withdrawn pending this round. Diagnostic (1 seed 261, 5
+epochs, round-15 winner configs, NOT a result): Lorenz
+correct scoring acc 0.285 / MSE 35.1 vs mis-scored 0.149 /
+74.6; var-sine correct 0.319 / 0.042 vs mis-scored 0.146 /
+0.142; sine control correct 0.864 vs mis-scored 0.124.
+Hypothesis: the wall is a scoring artifact, and whatever
+MSE wall survives on Lorenz is caused by the discrete
+prototype readout and/or the bin-only input.
+
+Design (protocol PROTOCOL-R18-CONTINUOUS.md, frozen before
+any test result): 4 nets per (task, seed), seeds 262..281,
+5 epochs, round-15 winner configs frozen. N1 delta one-hot
+gives C1 (prototype readout, H0) and C2 (ridge readout from
+d1, tests the readout). N2 delta with the A27
+continuous-bump input gives C3 (prototype) and C4 (ridge,
+tests the input). N3/N4 frozen give C5/C6 (prototype) and
+C2f/C4f (frozen ridge, tests whether delta adds continuous
+information). Val picks the bump sigma from {1.0, 2.0, 3.0}
+on seeds 262..266. Bars D1-D8 (20-seed paired differences,
+95% CI): D1 Lorenz C1 acc beats persistence and Markov-1;
+D2 var-sine C1 acc beats persistence and Markov-1; D3
+var-sine C1 MSE beats persistence; D4 Lorenz C1 MSE beats
+persistence (expected FAIL on pilot evidence); D5 Lorenz C2
+ridge MSE < C1; D6 Lorenz C3 bump MSE < C1; D7 Lorenz C4
+MSE < C2 and < C3 (judged only if D5 or D6 passes); D8
+Lorenz C2 ridge MSE < C2f frozen-ridge MSE. Verdict: H0
+passes if D1-D3 pass; if D4 also passes the wall was
+entirely scoring; if D4 fails the residual cause is readout
+(D5 only), input (D6 only), both/interacting (D7), or
+target by elimination (D1 passes, D5-D7 fail). Cause (c) is
+tested only by elimination, because the bump input changes
+p1 content jointly with the input. A27 (cont_bump /
+cont_bin helpers in rpc_v2.py) is additive only; the
+helpers are used only by the round-18 driver and its smoke
+test.
+
+Smoke (seed 262, 1 epoch, VM, 36/36 checks pass,
+re-run by the main agent, 213 s): Lorenz convention A
+0.272 / 35.18 vs convention B 0.160 / 70.67; var-sine
+convention A 0.217 / 0.1155 vs convention B 0.136 / 0.2467;
+bump at a bin centre equals _encode exactly; cont_bin
+matches the generator bins; all metrics finite; driver CLI
+resumable; analyzer writes. One analyzer bug found and
+fixed in smoke testing (stats on empty data).
+
+FIX found by the main agent before launch (val sharding):
+the driver's val loop ran ALL THREE bump sigmas per worker,
+so the monitor's 6 workers (one per task x sigma) would
+have duplicated each other's work 3x (90 lines instead of
+30) and the monitor's 30-line threshold would have fired
+early, picking a winner from partial data (the monitor
+crashes on the missing task and retries, so it would have
+self-healed, but with wasted compute). Fixed with a
+--bump-sigma flag on the driver (default all sigmas,
+preserving smoke behaviour) and the monitor passing it per
+worker. Verified on the VM: flagged run writes exactly 1
+line (Lorenz sigma 1.0 seed 262, val_mse 8.1314, val_acc
+0.397); default run writes 3 lines. The test phase was
+checked and has no such bug (sharded by seed only, 4
+workers x 10 seeds x 9 lines = 360).
+
+Status: LAUNCHED Nov 26, 2026, about 23:37 PT, on Reza's
+standing order (do all together, do not stop for approval).
+Beast smoke re-run first (rpc_round18_smoke.py): passed
+36/36 on Beast with the fixed driver. Six validation
+workers launched (lorenz and varsine, seeds 262-266, bump
+sigma 1.0/2.0/3.0, one worker per task x sigma with the
+--bump-sigma flag, PIDs 521666-521671, verified alive with
+the correct args; val_launched marker written). Monitor
+cron r18-monitor created (every 30 min; drives val ->
+winner pick per task -> test launch -> analysis at 360
+VAL WINNERS (Nov 26, 2026, 23:45 PT, verified from the
+Beast val files by the main agent): 30/30 val lines, 5 per
+file, so the --bump-sigma fix held in production (no
+duplication). Lorenz: sigma 1.0 mean val MSE 8.0389, 2.0
+7.0820, 3.0 9.0691; winner 2.0. Var-sine: sigma 1.0 0.1971,
+2.0 0.0675, 3.0 0.0356; winner 3.0. Test phase LAUNCHED (4
+workers, lorenz and varsine, seeds 262-281, PIDs
+524058-524061, verified alive with the correct args and
+--winners r18/winner.json). The monitor drives the rest
+(analysis at 360 lines). Round 17 test runs in parallel
+on Beast.
+
+## 51. Redirection: the model-data match is the contribution (Nov 27, 2026, 00:00 PT)
+
+Reza's order, in his words: "No mofo. The architecture
+resembles canonical microcircuits and hippocampus. And the
+match between data and our findings would be the biggest
+contribution and then you can go and fucking figure out
+the mapping or a phenomena or several of them that our
+model can explain and then we have a theory and a data
+that we can explain. Then that means we are onto
+something." The "not predictive coding yet" framing is
+rejected as the goalpost: the contribution is a model that
+explains real data, whether or not other models explain it
+too. The model's unique way, his words: "it is kinda like
+evolution, you randomly predict the next input and that is
+how you learn patterns." No hidden rule, no teacher, no
+backprop, no labels beyond the readout prototypes; random
+prediction plus error selection is the learning mechanism.
+Second order: "you did not test the hierarchical version
+where there are multiple modules all with feed back
+connections here and there that can learn input patterns."
+
+Two tracks launched on this order, both in parallel with
+rounds 17 and 18 (which continue on Beast):
+1. Deep research on the model-data mapping (research
+folder ~/workspace/research_notes/rpc-model-data-mapping-20261127-0800):
+map each model element onto canonical cortical
+microcircuits and hippocampal circuits; list the
+electrophysiology phenomena the model explains (omission
+responses, mismatch negativity, repetition and expectation
+suppression, predictive remapping, hippocampal replay and
+predictive place cells, sharp-wave ripples, theta
+sequences); state what is unique about random prediction
+plus error selection against predictive coding networks,
+reservoir computing and FORCE, HTM, successor
+representation, and Hebbian sequence learning; name the
+data that would discriminate this model from the
+alternatives.
+2. Hierarchical build (design agent, VM only, no Beast
+launch yet): a multi-module version with feedback wires
+between levels, each level's distal wire trained by the
+delta rule, a protocol, driver, analyzer, monitor, and
+smoke test. The design question is what hierarchy buys
+that two modules cannot (first motif step m1, slow
+timescale structure, continuous prediction).
+
+Status: research running; hierarchical design building.
+The round-19 scope note in the record (precision next if
+D8 passes, generative next if D8 fails) is superseded in
+order, not cancelled: the hierarchy and the data mapping
+are now the next builds, and the precision/generative
+tests follow the round-17/18 verdicts.
+
+## 52. Round 18 verdict: the continuous wall survives correct scoring (Nov 27, 2026, 00:15 PT)
+
+Round 18 COMPLETE. 360/360 test lines (20 seeds 262..281,
+9 lines per task-seed), 0 duplicate keys, 0 worker failures,
+analysis r18/r18_analysis.md verified by independent
+recomputation from the raw JSONL: all 16 condition means
+match the analysis to 3 decimals, baselines match
+(Lorenz Markov-1 0.208, persistence 0.171 / MSE 12.605,
+ESN 0.397 / MSE 4.308; var-sine Markov-1 0.284,
+persistence 0.126 / MSE 0.056, ESN 0.393 / MSE 0.046),
+clamp fraction 0.0 on every line.
+
+Correct scoring changes the numbers a lot. Lorenz C1
+accuracy 0.333 (CI 0.320-0.347) against the mis-scored
+round-15 value 0.164; var-sine C1 0.295 against 0.150.
+The pilot's wall was partly a scoring artifact, as the
+round-18 hypothesis said. But the wall survives on the
+error metric, which is what continuous prediction is
+judged by.
+
+Bars D1-D8: 5 pass, 3 fail.
+1. D1 PASS. Lorenz C1 accuracy beats persistence (paired
+diff 0.162, CI 0.149-0.175) and Markov-1 (0.125, CI
+0.112-0.137).
+2. D2 PASS, barely. Var-sine C1 accuracy beats
+persistence (0.169, CI 0.157-0.181) and Markov-1 by
+0.011 (CI 0.000-0.021, lower bound exactly zero).
+3. D3 FAIL. Var-sine C1 MSE 0.064 against persistence
+0.056 (paired diff -0.008, CI -0.018 to 0.002, includes
+zero).
+4. D4 FAIL, badly. Lorenz C1 MSE 22.390 against
+persistence 12.605 (paired diff -9.785, CI -12.029 to
+-7.540).
+5. D5 PASS. The ridge readout halves Lorenz MSE:
+C2 11.403 against C1 22.390 (paired diff 10.987).
+6. D6 PASS. The continuous bump input cuts Lorenz MSE
+by two thirds: C3 7.292 against C1 22.390 (paired diff
+15.097).
+7. D7 PASS. Combined, C4 3.795 beats C2 11.403 and C3
+7.292, and beats the ESN's 4.308.
+8. D8 FAIL. The frozen ridge is as good as the trained
+ridge: C2f 10.818 against C2 11.403 (paired diff -0.584,
+CI -0.735 to -0.434); C4f 3.615 against C4 3.795. Delta
+adds no continuous information beyond what the frozen
+reservoir already holds.
+
+H0 (D1, D2, D3) FAILS because D3 fails. The verdict rule
+in the protocol: if D4 also fails, the residual cause is
+readout (D5 only), input (D6 only), both or interacting
+(D7), or target by elimination (D1 passes, D5-D7 fail).
+Here D5, D6, and D7 all pass, so readout and input both
+contribute, and their combination is the best model
+configuration. But D8 fails, so the improvement is not
+learning: a ridge fitted on a frozen reservoir reaches
+the same MSE. The delta rule learns a discrete code
+(the learning gap is real: C1 0.333 against frozen
+0.038 on Lorenz, 0.295 against 0.041 on var-sine), and
+that discrete code carries no continuous information the
+frozen reservoir lacks.
+
+Two extra baselines the analysis table carries but the
+bars do not use: Markov-2 on Lorenz scores accuracy
+0.556 and MSE 1.416; on var-sine its MSE is 0.005. A
+two-step lookup beats every model configuration on
+continuous MSE by a wide margin, because both tasks are
+smooth and nearly deterministic given two past bins.
+The model is nowhere near that bar, and no readout or
+input change tested here closes it.
+
+Settled by round 18: (a) the round-15 continuous numbers
+are replaced by the correct-scored numbers above; (b)
+the delta rule does not learn continuous information;
+(c) the best continuous configuration is bump input plus
+ridge readout, and it is a readout of the frozen
+reservoir, not of learned weights. Not settled: whether
+any learned rule can add continuous information (the
+generative test, experiment D, is the next discriminator
+per the round-19 scope rule, since D8 failed). Per the
+Nov 27 00:00 PT redirection, the hierarchy build and
+the data mapping come first in order; the generative
+test follows the round-17/18 verdicts. Round 17 (clamp)
+is still in its test phase.
+
+## 53. Round 17 verdict: the top-down wire carries no causal role (Nov 27, 2026, 00:17 PT)
+
+Round 17 COMPLETE. Experiment B FAILS. 200/200 test lines
+(20 seeds 241..260, 5 conditions per task-seed), 0 duplicate
+keys, 0 worker failures, analysis r17/r17_analysis.md
+verified by independent recomputation from the raw JSONL:
+all condition means match the analysis to 3 decimals and
+all paired differences to 4 decimals, clamp fraction 0.0
+on every line.
+
+Validation (planted lag-1, 5 seeds): fb_gain 0.0 val_acc
+0.227, 0.1 0.226, 0.3 0.221, 1.0 0.182. Winner 0.1, guard
+PASS (0.226 >= 0.80 x 0.227). Strong fixed feedback hurts:
+gain 1.0 drops validation accuracy to 0.182.
+
+Lag-1 bars (C1-C4 decide, C5 is a guard):
+1. C1 FAIL. Cutting the wire degrades omit_m2 by +0.005
+(CI +0.000 to +0.010); the bar needs >= 0.10. It fails
+by a factor of 20.
+2. C2 FAIL. Shuffling the wire changes omit_m2 by -0.001
+(CI -0.006 to +0.005). A shuffled wire is as good as the
+real one.
+3. C3 FAIL. p1_cos (wire-on vs wire-cut) is 0.998; the
+bar needs < 0.90. The wire moves module 1's code by
+0.2 percent.
+4. C4 FAIL. Wire-off omit_m2 differs by +0.004, CI
+-0.000 to +0.009, which includes zero. Never building
+the wire is the same as building it.
+5. C5 guard PASS. Wire-on normal_acc 0.228 vs wire-off
+0.229.
+
+Lag-2 bars: C1 PASS, C2/C3/C4 FAIL. The lag-2 C1 bar is
+weaker (any degradation with CI above zero, no 0.10
+floor): cut degrades omit_m2 by +0.004, CI +0.0004 to
++0.0080, so the pass is real but a 0.4-point effect.
+Total: 2/9 bars pass (lag-1 C5, lag-2 C1).
+
+Numbers behind the verdict (lag-1 omit_m2): wire-on
+0.953, wire-cut 0.948, wire-shuffle 0.953, wire-off
+0.948, frozen 0.083. Lag-2: wire-on 0.924, cut 0.920,
+shuffle 0.922, off 0.922, frozen 0.092. The omission
+result itself reproduces (wire-on 0.953 vs round 16's
+0.966 on different seeds); the wire adds nothing to
+it. The error magnitude also does not move: first epoch
+3.032, last epoch 1.619 wire-on vs 1.617 wire-off.
+Feedback RMS is 6.5 percent of the reservoir drive, yet
+module 1's code is 99.8 percent identical with the wire
+on or cut. The wire is present, small, and inert.
+
+What this kills: the fixed random top-down wire at gain
+0.1 carries no causal role in the prediction. It does
+not kill all feedback: gain 1.0 is worse, not better,
+so stronger fixed feedback is not the fix; a learned
+feedback wire is untested. That is a hierarchy question
+now (round 19): in the hierarchical version each level's
+feedback would carry a learned prediction, not a random
+one.
+
+What this does to the thesis question: two of the three
+research discriminators are now decided. Omission (A)
+passes, top-down clamp (B) fails. The model as it
+stands is local error-driven learning on a fixed random
+reservoir whose prediction is read out from d1 and never
+fed back into module 1. Whether that counts as
+predictive coding now rests on precision (C) and the
+generative test (D), and on the hierarchy. This verdict
+matches the mapping research: a fixed random feedback
+wire cannot deliver a stimulus-specific template, and
+the Kok/Aitken deep-layer template result is exactly
+what such a wire cannot produce.
+
+## 54. Round 19: hierarchy (experiment E) -- DESIGN ONLY, NOT LAUNCHED
+
+Status: protocol frozen Nov 27, 2026
+(PROTOCOL-R19-HIERARCHY.md). Driver
+rpc_round19_hierarchy.py, model rpc_hier.py, analyzer
+r19/r19_analyze.py, monitor r19/monitor.py, smoke
+rpc_round19_smoke.py. Nothing launched on Beast. The
+design agent numbered its draft section 51; it is
+recorded here as 54, because 51 is the redirection, 52
+is the round-18 verdict, and 53 is the round-17 verdict.
+
+### 54.1 Question
+
+Does stacking fixed random reservoirs into a hierarchy,
+with one delta-trained distal wire per level and one
+fixed random feedback wire per level, learn structure
+that a flat two-module model cannot learn? The sharpest
+version: can the hierarchy learn the first motif step
+(m1), which sits at 0.680 against the 0.80 bar in round
+15, when the first step depends on a slow context the
+flat model cannot hold?
+
+### 54.2 Hypothesis (one sentence)
+
+A three-level hierarchy with a slow top level (effective
+memory about 18 steps) learns the slow context of a
+two-timescale sequence and uses it to predict the
+context-dependent first motif step, which a flat
+two-module model cannot do because its memory spans
+about 2 to 3 steps.
+
+### 54.3 Architecture (A28, new file rpc_hier.py; rpc_v2.py untouched)
+
+1. M modules stacked (M = 2 or 3): input feeds module 1,
+   module 2 predicts module 1, module 3 predicts module 2.
+2. Each level l < M has a distal wire W_dist_l trained
+   ONLY by the delta rule (signed error between the level
+   prediction and the actual code below it, NLMS
+   denominator, w_max 2.0).
+3. Each level l < M has a fixed random feedback wire
+   W_fb_l into the module below it (A26 form, never
+   trained), with per-level gain fb_gain_l and test modes
+   on / cut / shuffle.
+4. Level leak rates are fixed by depth: alpha 1.0, 0.3,
+   0.1 (estimated effective memories about 2-3, 6, 18
+   steps at rho 0.9). No confirmation, no inhibition.
+5. Readout stays the fixed p1-prototype cosine at the
+   bottom level; the top-level prediction against
+   mean-p_{M-1} prototypes is a secondary readout (M = 3
+   only, no bar).
+
+Nested initialisation: weights are drawn level by level
+from one seeded RNG stream, so a 3-level net's levels
+1-2 weights are EXACTLY a 2-level net's at the same seed
+(smoke-tested).
+
+### 54.4 Hierarchical task (make_hier_data)
+
+Length 48, 4 blocks of 12 steps. Each block starts with
+a context token C in {0,1,2,3}. Each context has two
+motifs with shared starters 4 and 5: C=0: (4,6,7),(5,8,9);
+C=1: (4,8,9), (5,10,11); C=2: (4,10,11),(5,12,13); C=3:
+(4,12,13),(5,14,15). Each block plants one motif
+starting with 4 and one with 5 at random non-overlapping
+starts; filler is uniform from 4..15. m1 context-blind
+Bayes is 0.25; m2 is determined by the 2nd token;
+overall chance 1/16 = 0.0625. Late m1 = starter at block
+position 6 or later. Flat model expected score: late m1
+about 0.25 (context-blind), overall acc about 0.35-0.40.
+Bar: the candidate beats flat on late m1 by at least
++0.20 and reaches late m1 mean at least 0.45 (lower CI
+above 0.35).
+
+### 54.5 Tasks, seeds, conditions
+
+Tasks: planted lag-1 (200/50/50, K=16), sine-fixed
+(50/20/20, K=32), hier (100/50/50, K=16). Seeds 282..301
+(20 fresh; val seeds 282..286). Base configs are the
+round-15 winners (planted1 alpha 1.0 / sigma 0.0 / eta_d
+0.05; sine alpha 1.0 / sigma 0.0 / eta_d 0.2; hier alpha
+1.0 / sigma 0.0 / eta_d 0.05). 5 epochs, n_res 200,
+n_out 256.
+
+Conditions (5 nets per task per seed, 8 lines per task
+per seed, 480 test lines): cand_on (val-winner
+architecture, delta, feedback on), cand_cut (same net,
+feedback cut), cand_shuffle (same net, feedback
+shuffled), hier2_ladder (M=2, ladder alphas, winner
+fb_gain1, delta), hier2_nofb (M=2, ladder alphas, no
+feedback, delta), flat (M=2, both alphas = task alpha,
+no feedback, delta: the round-15 winner config),
+cand_frozen (winner architecture, no plasticity),
+baseline (Markov-1/2, persistence, ESN on identical test
+sequences). If the val winner is 2 levels, hier2_ladder
+duplicates cand_on and is skipped (420 lines), and H4 is
+not judged.
+
+Validation (hier task only): n_levels {2,3} x fb_gain1
+{0.1,0.3} x fb_gain2 {0.1,0.3} = 6 effective configs, 5
+val seeds, 30 lines. Winner = highest mean val overall
+accuracy, tie-break first in grid order, frozen for all
+test conditions.
+
+### 54.6 Bars (20-seed test, paired per-seed differences, 95% CI)
+
+1. H1: hier overall acc, cand_on - flat >= +0.10.
+2. H2: hier late m1, cand_on - flat >= +0.20.
+3. H3: hier late m1, cand_on mean >= 0.45, lower CI above 0.35.
+4. H4: hier late m1, cand_on - hier2_ladder >= +0.10 (3-level winner only).
+5. H5: planted lag-1 m1, cand_on - flat >= +0.05.
+6. H6: planted lag-1 m1, cand_on mean >= 0.80.
+7. H7: sine-fixed acc, cand_on - flat >= +0.03.
+8. H8: hier overall acc, cand_on - cand_cut >= +0.05.
+9. H9: hier overall acc, cand_on - cand_frozen >= +0.10.
+Shuffle contrast is a diagnostic, not a bar. Verdict: H0
+passes if H1, H2, H3 pass; H4 decides third level vs
+slower level 2; H5-H7 decide whether hierarchy helps the
+old tasks; H8-H9 are mechanism checks.
+
+### 54.7 Smoke test (VM, seed 282, 1 epoch unless noted)
+
+All checks pass (rpc_round19_smoke.py, 2m31s on the VM,
+Nov 27, 2026). 1. Nested init exact: a 3-level net's
+levels 1-2 weights are identical to a 2-level net's at
+the same seed. 2. Flat reproduction (5 epochs, seed
+201): hierarchical flat net scores planted1 0.207 vs
+round-15 recorded 0.227 (diff -0.020) and sine 0.903 vs
+0.872 (diff +0.031), both within the 0.05 bar. 3.
+Feedback changes the lower module's state: mean r1
+cosine on vs cut 0.9725 (below 1.0, above 0.0);
+fb_rms_ratio on 0.2513, cut 0.0000; shuffle drive
+measured on the same trajectory (same ds) is 1.0306x
+the on drive (bar 0.90-1.10); the separate-pass shuffle
+fb RMS is 0.2914 vs on 0.2513 (gap +16.0 percent), which
+is trajectory divergence, not a magnitude bug, and it
+weakens the shuffle contrast as a diagnostic. 4. Top
+readout non-degenerate: top_pred takes 16 distinct
+values over 480 steps. 5. Timescale ladder: lag-11
+context decode from the untrained net is L1 0.70, L2
+0.97, L3 0.93 (chance 0.25; L3 exceeds L1, so the
+ladder holds); lag-1 sanity is 1.00 at all levels.
+Note: L1 retains context at 0.70, so the flat model may
+beat the 0.25 late-m1 guess. 6. Guardrails: all metrics
+finite, no NaN, r_max 0.869 (below 10), clamp_frac
+0.0000 per level [0.0, 0.0]; driver CLI resumable (1
+line after two runs); analyzer writes r19_analysis.md on
+1-seed output (exits 1 on coverage, as designed).
+
+### 54.8 Execution
+
+About 30 CPU-hours (300 training runs at about 6 min
+each), about 5 h wall with 6 workers (3 tasks x 2
+seed-shards). Monitor r19/monitor.py drives val ->
+winner pick -> test -> analysis at 480 lines (420 if the
+winner is 2 levels).
+
+### 54.9 Self-critique (from the frozen protocol)
+
+1. rpc_v2.py is untouched; rounds 17 and 18 keep running against it.
+2. Level alphas are fixed by depth, not validated.
+3. Flat reproduction in the hierarchical class is approximate (within 0.05), because the init draw order differs.
+4. hier2-ladder vs flat conflates a slower level 2 with feedback; conditions 5 and 6 separate them as diagnostics.
+5. Val seeds are a subset of test seeds (same mild overlap as rounds 15-18).
+6. A win with no cut gap means training-time shaping, not test-time feedback use.
+7. Round 19 does NOT test precision (C), generative (D), or the mapping onto canonical microcircuits or hippocampal data.
+8. (Main agent, Nov 27): the shuffle diagnostic is weakened by the +16.0 percent separate-pass gap (see 54.7 point 3 and the protocol section 10 amendment).
+
+### 54.10 Main-agent review (Nov 27, 2026, before launch)
+
+Two points from the design agent's report, verified
+against the files on disk: (a) the protocol section 10
+check 3 was amended pre-launch (shuffle drive measured
+on the same trajectory, not separate-pass RMS; no bar
+changes); (b) the hypothesis premise is already dented
+by the smoke test: level 1 decodes the block context at
+lag 11 with 0.70 accuracy, so the flat model's memory
+spans well past the assumed 2 to 3 steps. The flat
+model may therefore beat the 0.25 late-m1 guess, which
+compresses the +0.20 gap H2 demands and makes H3
+harder. The round is still worth running: the bars
+decide, and a flat win on late m1 is itself the finding
+that hierarchy is unnecessary for this task. The main
+agent re-ran the VM smoke test independently before
+launch (result recorded in the launch entry below).
+
+### 54.11 Launch (Nov 27, 2026, 00:25 PT)
+
+Main agent re-ran the VM smoke independently: all checks
+pass, numbers identical to the design agent's run
+(3c 1.0306, 3d +16.0 percent, ladder L1 0.70 / L2 0.97 /
+L3 0.93, r_max 0.869, clamp_frac 0.0000). Code copied to
+Beast (tarball rpc-r19.tar.gz, protocol + rpc_hier.py +
+driver + smoke + r19/). Beast smoke re-run: SMOKE PASSED,
+all checks, numbers identical to the VM.
+
+Monitor fix (main agent, before launch): r19/monitor.py
+launched workers with Popen + wait, so the cron run that
+launches the test phase would block for its whole ~5 h
+wall (300 training runs at about 6 min, 6 workers) and
+could be killed mid-phase, leaving the test_launched
+marker set and the monitor waiting forever. Both
+launch_val and launch_test now use start_new_session=True
+with no wait and write their marker at launch time. The
+patched monitor was copied to Beast. No protocol or
+driver change.
+
+Six validation workers launched by one monitor run at
+00:25 PT (verified alive with correct args, one per
+config: L2g010, L2g030, L3g010_g010, L3g010_g030,
+L3g030_g010, L3g030_g030; seeds 282-286, hier task);
+val_launched marker written. Monitor cron r19-monitor
+created (every 30 min, drives val -> winner -> test ->
+analysis at 480 lines, 420 if the winner is 2 levels).
+
+## 55. Round 17/18 critiques -- LAUNCHED Nov 27, 2026, 00:34 PT
+
+Brief CRITIQUE-BRIEF-R1718.md (10 checks, built by private
+proactive work, verified by the main agent against
+sections 52/53: every quoted number matches the record).
+Sharpest questions: (1) whether the round-17 wire was
+actually live in the code (feedback is 6.5 percent of the
+drive yet module 1's code moves 0.2 percent); (2) whether
+the round-18 frozen ridge beating the trained ridge means
+delta actively harms the readout rather than adding
+nothing. Also: the lag-2 C1 bar artifact, borderline D2/D3,
+the scoring-correction audit, Markov-2's dominance, the
+mapping tension (A passes, B fails), round 19's risk of
+repeating round 17's null, and which of the generative (D)
+or precision (C) tests settles more.
+
+Pack synced to /home/reza/zfs-1tb/rpc-sim/review/
+(simulation-results.md sections 44-54, both protocols,
+PROTOCOL-R19-HIERARCHY.md, rpc_v2.py, both drivers, r17/
+and r18/ with winners, test JSONLs and analyses, the
+brief). Winner files were fetched from Beast first
+(r17 fb_gain 0.1 val 0.22609 vs gain0 0.22661; r18 lorenz
+bump 2.0 val_mse 7.082, varsine bump 3.0 val_mse 0.0356),
+so the pack is complete. Launch script /tmp/launch_r1718.sh
+(same pattern as round 14, brief pasted in ONE message):
+Kimi PID 534794 (log r1718-kimi-critique.log, writing),
+AGY Gemini PID 534795 (log r1718-agy-critique-gemini.log,
+empty at 45 s, same slow start as round 14, process alive
+with the full brief in its args). AGY Opus NOT attempted:
+quota-blocked until about Dec 1, 2026; its round-14 retry
+is separately scheduled Dec 2. Reviewers write
+r1718-kimi-critique.md and r1718-agy-critique.md in the
+review directory. Collection job r1718-critique-check
+(every 30 min) fetches, verifies and records both when
+they land.
+
+### 54.12 Validation winner (Nov 27, 2026, 00:44 PT)
+
+30/30 val lines (5 per config), no duplicates, no
+Traceback. Mean val overall accuracy on the hier task
+(seeds 282-286): L2g010 0.268, L2g030 0.263,
+L3g010_g010 0.268, L3g010_g030 0.261, L3g030_g010 0.266,
+L3g030_g030 0.259. Winner: L2g010 (2 levels, fb_gain1
+0.1, val_acc 0.26826). L3g010_g010 ties the winner at
+0.268; the tie-break (first in grid order) picks the
+2-level model. The third level adds nothing on
+validation: the slow top level does not help even before
+the test phase. Consequence: the test is 420 lines (the
+hier2_ladder condition duplicates the candidate and is
+skipped), and bar H4 (3-level beats 2-level ladder) is
+NOT judged. Test phase launched at 00:44 PT: 6 detached
+workers (3 tasks x 2 seed-shards, seeds 282-301, winner
+config), test_launched marker written, 0 lines at launch.
+The r19-monitor body was corrected in the same turn: its
+verdict instruction said "section 55", which is the round
+17/18 critiques launch record, so both monitor bodies now
+say "the next free section, checked against the file".
+
+## 56. Round 19 verdict: the hierarchy does not win; the flat model wins everywhere (Nov 27, 2026, 01:15 PT)
+
+Test phase complete and analysis done (monitor run 01:14 PT).
+420/420 test lines (target 420, because the val winner is
+2 levels), 20 seeds 282-301, 7 conditions x 3 tasks, no
+Traceback in any log. The a/b shard files are exact copies
+of the 282-301 files (identical rows, no conflicts), so the
+420 unique (task, condition, seed) keys are the full test
+set. Independent recomputation from the raw JSONL confirms
+every headline mean to 3 decimals and every baseline mean
+to 3 decimals; CI endpoints differ by at most 0.003 (the
+analysis uses a different CI method), and no bar verdict
+changes.
+
+Val winner (record section 54.12): 2 levels, fb_gain1 0.1,
+val_acc 0.268. Note the near tie: the best 3-level config
+L3g010_g010 scored 0.26809, only 0.00017 below the winner,
+so the winner is a tie-break artefact as much as a win.
+
+Headline test numbers (20 seeds, mean with 95 percent CI):
+
+1. hier task: cand_on acc 0.248 (0.238, 0.258), flat 0.255
+   (0.247, 0.262); cand_on late_m1 0.278 (0.241, 0.315),
+   flat late_m1 0.263 (0.241, 0.286). Baselines: Markov-1
+   0.301, Markov-2 0.345, ESN 0.406. Every trained model
+   sits below Markov-1.
+2. planted1 task: cand_on acc 0.210, flat 0.226; cand_on m1
+   0.561 (0.512, 0.609), flat m1 0.682 (0.633, 0.730).
+   Baselines: Markov-1 0.280, Markov-2 0.272, ESN 0.279.
+3. sine task: cand_on acc 0.679 (0.648, 0.710), flat 0.874
+   (0.860, 0.887). Baselines: Markov-1 0.466, Markov-2
+   0.787, ESN 0.946. The flat model beats Markov-2 and
+   sits just below the ESN.
+4. Frozen sanity: hier frozen acc 0.061 (0.052, 0.070),
+   below the 0.25 ceiling. PASS.
+
+Bars (protocol PROTOCOL-R19-HIERARCHY.md, 20-seed paired
+differences): 1 of 9 pass.
+
+1. H1 FAIL: hier acc cand_on minus flat -0.007 (-0.014,
+   0.000). Bar +0.10 with lower CI above 0.
+2. H2 FAIL: hier late_m1 cand_on minus flat +0.015 (-0.015,
+   0.044). Bar +0.20 with lower CI above 0.
+3. H3 FAIL: hier late_m1 cand_on 0.278 (0.241, 0.315). Bar
+   mean at least 0.45 with lower CI above 0.35.
+4. H4 FAIL (not judged): val winner is 2 levels, so the
+   3-level ladder duplicates cand_on (protocol section 9).
+5. H5 FAIL: planted1 m1 cand_on minus flat -0.121 (-0.148,
+   -0.094). Bar +0.05 with lower CI above 0.
+6. H6 FAIL: planted1 m1 cand_on 0.561 (0.512, 0.609). Bar
+   mean at least 0.80.
+7. H7 FAIL: sine acc cand_on minus flat -0.195 (-0.226,
+   -0.163). Bar +0.03 with lower CI above 0.
+8. H8 FAIL: hier acc cand_on minus cand_cut +0.002 (-0.001,
+   0.004). Bar +0.05 with lower CI above 0. Feedback is
+   not used at test time.
+9. H9 PASS: hier acc cand_on minus cand_frozen +0.187
+   (0.177, 0.198). Bar +0.10 with lower CI above 0.
+   Learning matters, but it does not buy hierarchy.
+
+Shuffle diagnostic (not a bar): hier acc cand_on minus
+cand_shuffle +0.001 (-0.001, 0.004). Even if H8 had
+passed, the near-zero shuffle gap would say the effect is
+drive magnitude, not feedback content.
+
+Verdict:
+
+1. H0 FAILS. The hierarchy does not win the hierarchical
+   task. The flat model beats the 2-level hierarchy on
+   every task: hier acc by 0.007, planted1 m1 by 0.121,
+   sine acc by 0.195.
+2. The dented premise from section 54.10 is confirmed:
+   level 1 already decodes block context at lag 11 with
+   0.70 accuracy, so the flat model had the context the
+   hierarchy was supposed to add, and the late-m1 guess
+   of 0.25 was beaten by the flat model itself (0.263).
+3. Depth adds nothing: the 3-level config ties the
+   2-level winner on validation, and the 2-level winner
+   loses to flat on test.
+4. Mechanism: feedback is inert at test time (H8 fail,
+   shuffle gap 0.001, cand_cut and cand_shuffle match
+   cand_on to 0.002). The only passing bar is H9, which
+   says the trained weights beat frozen weights, not that
+   the hierarchy does anything the flat model does not.
+5. The hierarchy experiment is closed with a flat win.
+   The open question from round 14 stands: the delta
+   rule learns, but nothing tried so far makes the
+   top-down wire or the extra level earn its keep.
+
+Files: r19/r19_analysis.md, r19/r19_hier_val_*.jsonl,
+r19/r19_*_test_*.jsonl, r19/winner.json, fetched to
+~/workspace/thesis-rpc/r19/. The r19-monitor cron is
+removed; its job is done.
+
+Correction (main agent, Nov 27, 2026, 01:16 PT,
+independent recomputation): the "1 of 9" tally counts
+H4 as a fail, but the protocol says H4 is not applicable
+when the val winner is 2 levels, so the honest tally is
+1 of 8 judged bars pass (H4 N/A). The verdict is
+unchanged: H0 fails, and the only passing bar is H9.
+The analyzer's r19_analysis.md keeps its own "1 / 9
+pass (0 N/A)" line as the artifact of record; this
+section is the corrected account.
+
+## 57. Rounds 17/18 critiques land: Kimi and AGY Gemini (Nov 27, 2026, about 01:20 PT)
+
+Both critiques landed on Beast in /home/reza/zfs-1tb/rpc-sim/review/ and both
+reviewer processes are gone. Kimi finished first (file 29,157 bytes, 08:53 UTC);
+AGY Gemini finished 09:15 UTC (file 59,433 bytes). Both files fetched to
+~/workspace/thesis-rpc/ (r1718-kimi-critique.md, r1718-agy-critique.md),
+md5-verified against the Beast copies. Both reviewers read sections 44-53,
+both protocols, rpc_v2.py, both drivers and analyzers, and all 560 test JSONL
+records. Both ran fresh diagnostics on Beast. This section records their
+verdicts and what I verified myself. Where a number is reviewer-reported and
+I did not re-run it, I say so.
+
+### 57.1 Experiment B (round 17): the failure stands for the tested wire only
+
+1. Both reviewers agree the preregistered failure stands for the exact
+   mechanism tested: a fixed random additive wire at fb_gain 0.1. Lag-1 C1-C4
+   all fail, and the lag-2 C1 pass is not a protocol-licensed pass (see 57.3).
+2. Strongest reason to doubt the general conclusion ("the wire carries no
+   causal role"): round 17 tested the wrong wire geometry. The feedback is a
+   fixed random additive map (+W_fb @ d1). Rao and Ballard (1999) and
+   Chapter 3 specify aligned subtractive feedback, minus W_prox transpose
+   times d1. AGY ran that control on seed 241: at gain 1.0 the subtractive
+   wire is stable, raises normal accuracy above wire-off (0.2330 vs 0.2217),
+   reaches omit_m2 1.000, clears C3 (p1_cos 0.8565), and drops the omission
+   code cosine from 0.401 to 0.036. Reviewer-reported, one seed, not
+   re-checked by me. It shows the tested wire, not feedback in general,
+   failed.
+3. Wire liveness, verified by me in the code: the wire is live. Feedback
+   enters module 1 before tanh and before the leak (rpc_v2.py:1127-1141,
+   564-573), and round 17 uses alpha 1.0, so the leak attenuates nothing.
+   There is no normalization or threshold that washes it out. The 6.5
+   percent figure is fb over bottom-up drive only (rpc_v2.py:1286-1288); it
+   omits the recurrent drive W_res @ r, so the true drive fraction is about
+   3.9 percent (AGY). At that size, p1_cos 0.998 follows from plain geometry,
+   not from a broken wire. Kimi's gain diagnostic (reviewer-reported) shows
+   p1_cos 0.843 at gain 1.0, so the implementation can respond.
+4. The wire is not only inert, it is slightly harmful. Both reviewers found
+   the same unreported effect: enabling the wire raises final training error
+   on 19 of 20 seeds (lag-1 +0.00203, p below 1e-7) and degrades lag-1
+   omit_m1 by 0.0157 (p 0.007). Section 53 did not report this. The honest
+   sentence is: the fixed random wire at gain 0.1 has a tiny causal effect
+   in the wrong direction, not no effect.
+5. Winner-pick bias, verified by me in the code: gain 0.0 can never win.
+   r17_analyze.py only considers gains above 0 as winners, so the procedure
+   must pick a positive wire even when no wire scores best (winner.json:
+   0.22609 at gain 0.1 vs 0.22661 at gain 0.0). AGY's sweep shows the bias
+   did not change round 17: at gains 0.3, 1.0, and 2.0, cutting the wire
+   improves omit_m2, so no gain on the grid passes B. The bias matters for
+   future designs, not for the round-17 outcome.
+
+### 57.2 The continuous wall (round 18): split verdict, and the Lorenz wall falls
+
+1. Kimi: the Lorenz C1 prototype MSE wall stands, but the var-sine MSE wall
+   is unresolved, and "delta does not learn continuous information" is
+   refuted. Delta massively improves prototype MSE over frozen nets on all
+   four task/input combinations (20 of 20 seeds each). D8 only tests one raw
+   fixed-lambda ridge probe.
+2. AGY: the headline wall verdict is refuted. Round 18 froze hyperparameters
+   selected under round 15's buggy two-step-ahead scoring, and D8 repeats
+   round 14's unstandardized ridge confound.
+3. I reproduced AGY's decisive Lorenz numbers exactly, from the same code
+   and data (script in the goal hidden_files, run on this VM):
+   discrete bin input only, no bump, no ridge, 5 seeds 262-266. The
+   Convention-A config (alpha 1.0, smooth_sigma 2.0, eta_d 0.2) scores
+   acc 0.4285, MSE 5.073, per-seed MSE [5.68, 4.62, 3.75, 5.83, 5.48].
+   The frozen round-18 C1 config scores acc 0.3169, MSE 26.611, per-seed
+   [24.88, 20.06, 25.52, 31.16, 31.44]. These match AGY's table to every
+   printed digit. Conclusion: D4 (Lorenz C1 MSE 22.39 vs persistence 12.61)
+   was a hyperparameter carryover artifact, not a wall. Under valid
+   validation the delta prototype model beats persistence 5 of 5 seeds
+   (MSE 5.07 vs 13.05) and beats the round-18 bump config C3 (7.73).
+   AGY's var-sine Convention-A numbers (MSE 0.0370) are reviewer-reported;
+   I did not re-run them.
+4. D8, verified by me in the code and by a seed-262 re-run: fit_ridge
+   centers the features but does not standardize them, with lam fixed at
+   1.0 (rpc_round18_continuous.py:231-246). On seed 262, mean drive norm is
+   1.025 trained vs 5.651 frozen (5.52x), exactly Kimi's numbers. Raw
+   lam 1.0 ridge MSE is 14.904 trained vs 14.073 frozen (frozen wins).
+   Column-standardized lam 1.0 ridge MSE is 13.976 vs 13.976, a tie. The
+   frozen win is a regularization artifact from delta shrinking the drive
+   norm, not evidence that delta adds no continuous information. AGY's
+   stronger claim (trained beats frozen once scale-matched) depends on the
+   matching method; my standardization gives a tie, not a trained win.
+5. D2/D3 borderline, settled by my recomputation from the JSONLs: D2b mean
+   +0.010808, 13 of 20 seeds positive. Under the analyzer's z 1.96 rule the
+   CI is [+0.000312, +0.021304], a pass by 0.0003 of margin. Under exact
+   Student t with 19 degrees of freedom the CI is [-0.000400, +0.022016],
+   a fail. Kimi and AGY are each right under their own interval rule. D3
+   fails under both (mean -0.008275, 7 of 20 seeds). H0 fails either way,
+   but only because the frozen C1 config is bad, not because a var-sine
+   MSE wall is established.
+6. Scoring correction, verified: both reviewers confirm no remaining
+   one-step shift in round 18, and I verified collect() scores pred(t)
+   against token t for t at least 1, matching run(). One record correction:
+   the bug was in rpc_round15.py run_cont, not in baselines.py; the
+   sections 46/52 blame on the baselines docstring is backwards.
+7. Two more record corrections from the critiques, verified against the
+   files: the var-sine C3 prototype MSE 0.039 beats persistence 0.056 and
+   beats C4 0.044, but the D7-var analyzer line (r18_analyze.py:288-295)
+   only computed C2 minus C4 and dropped the C3 comparison. And the
+   "C1_onehot" label is wrong on var-sine, where the winner uses
+   smooth_sigma 2.0, so the input is smoothed bins, not one-hot.
+8. Markov-2: both reviewers show the tasks are trivial for two-bin lookup
+   (99.50 percent of Lorenz test 2-grams and 99.82 percent of var-sine test
+   2-grams appear in training; two bins explain R squared 0.989 and 0.995
+   of next-step variance). The wall that survives is narrower: the model
+   still trails Markov-2 (Lorenz MSE 1.416, var-sine 0.0053) and a matched
+   continuous-ridge ESN (Lorenz 2.097, var-sine 0.0072, reviewer-reported),
+   and no linear W_dist1 on a frozen reservoir can exceed the linear
+   decodability of y2_prev. A discriminating task needs multi-step memory
+   or noise: NARMA-10 or Mackey-Glass with tau 17.
+
+### 57.3 Bar and tally corrections
+
+1. Lag-2 C1 is an analyzer invention, verified by me: the frozen protocol
+   sets the 0.10 floor for C1, and r17_analyze.py applies it to lag-1 only
+   and checks lag-2 on CI above zero alone. Under the frozen definition
+   the lag-2 C1 pass (+0.004) fails by a factor of 24. The honest round-17
+   tally is 1 of 9 (C5, a guard), not 2 of 9.
+2. Section 52's "continuous wall survives correct scoring" is narrowed to:
+   the wall survives only for the frozen Convention-B C1 configuration and
+   for the Markov-2/ESN comparison. It does not survive Convention-A
+   validation of round 15's own grid.
+3. Section 53's "the wire carries no causal role" is narrowed to: the fixed
+   random additive wire at gain 0.1 carries no useful causal role. Aligned
+   subtractive feedback is untested at scale.
+4. What survives of the thesis claim, per both reviewers: fixed random
+   reservoir plus local signed-error learning can learn discrete sequential
+   predictions and make continuous information accessible to a fixed
+   prototype readout. What does not survive as demonstrated: causal
+   top-down explanation away, precision weighting, burst confirmation, and
+   any advantage over reservoir plus Widrow-Hoff NLMS. The accurate name
+   stays local error-driven prediction learning on fixed random reservoirs.
+
+### 57.4 Round 19 and the next experiment
+
+1. Both reviewers warned round 19 repeats round 17's null: same fixed
+   random wire, gains 0.1 and 0.3, validation on filler-dominated overall
+   accuracy, no state-effect gate. Section 56 shows the warning came true
+   (H8 +0.002, shuffle gap +0.001). The warning now applies to any
+   follow-up, not to round 19, which is closed.
+2. The reviewers disagree on the next experiment. Kimi: run precision-weighted
+   causal feedback (B prime plus C); a generative rollout D alone cannot
+   distinguish predictive coding from autoregressive NLMS. AGY: fix the
+   feedback geometry first (subtractive minus W_prox transpose or locally
+   learned wire), then run generative rollout D plus a revised B; precision
+   C is premature without a causal wire. Common ground: fix the wire first
+   with a per-level state-effect gate (p1_cos below 0.90) and selection on
+   late-m1 or omission effects, not overall accuracy. Neither reviewer
+   recommends an unchanged D or C on the current architecture.
+3. AGY's proposed cheap pair (about 6 CPU-hours): aligned-feedback clamp
+   plus multi-step omission rollout on noisy/occluded planted tasks with
+   fresh seeds 302-321, then a Convention-A re-validation plus NARMA-10 /
+   Mackey-Glass with standardized ridge probes. Kimi's bar for C: an
+   explicit precision manipulation with an expectation-by-precision
+   interaction on stimulus-specific error responses, with a live
+   state-effective wire whose cut and shuffle remove the effect.
+
+Files: r1718-kimi-critique.md, r1718-agy-critique.md in ~/workspace/thesis-rpc/.
+Verification scripts and output:
+~/workspace/goals/random-predictive-coding-simulation-proof-hunt/hidden_files/r1718_spotcheck.py,
+r1718_d8check.py, r1718_spotcheck_out.txt. The r1718-critique-check cron is
+removed; its job is done. AGY Opus was not attempted (quota-blocked to
+about Dec 1; round-14 retry separately scheduled Dec 2).
+
+Note (main agent, Nov 27, 2026, 01:35 PT): I re-ran both scripts myself
+and reproduced every number exactly (A14 acc 0.4285 / MSE 5.073, C1_R18
+0.3169 / 26.611, D8 norms 1.025 / 5.651, raw ridge 14.904 / 14.073,
+standardized ridge 13.976 / 13.976). One script bug found: r1718_spotcheck.py
+crashes in its D8 tail (line 44 passes bins=None to ridge_metrics, which
+then fails on the within-1 computation). The A14/C1 comparison completes
+before the crash, and the D8 numbers come from r1718_d8check.py, which
+passes the bins correctly. No result changes; the bug is in the spot-check
+script only.
+## 58. Round 20: aligned-feedback clamp (revised experiment B) + multi-step omission rollout (experiment D) -- DESIGN + LAUNCH
+
+(Nov 27, 2026. Design subagent report; protocol frozen in
+PROTOCOL-R20-ALIGNED.md. Launched on Beast Nov 27, 2026,
+02:12 PT; see the launch entry at the end of this section.)
+
+### Why this round exists
+
+Round 17 tested the wrong wire. It used a fixed random
+additive wire (+W_fb @ d1, A26) and found it inert: cutting,
+shuffling, or never building it changed omission accuracy by
+at most half a point. Both external reviewers of rounds 17/18
+(Kimi and AGY Gemini, section 57) agree the failure stands
+only for that wire. Rao and Ballard (1999) and Chapter 3
+specify ALIGNED SUBTRACTIVE feedback: minus the readout
+transpose times the prediction. AGY's one-seed control
+(reviewer-reported) reached omit_m2 1.000 with that wire at
+gain 1.0. This round fixes the wire first (A29), then re-runs
+the clamp (revised experiment B) and adds the multi-step
+omission rollout (generative experiment D, first half).
+Precision (experiment C) is NOT in this round: both reviewers
+agree it is premature without a causal wire.
+
+### Assumption A29 (rpc_v2.py)
+
+Three parts, all default-off, all previous results reproduce
+exactly (smoke S2: gain 0.0 reproduces the round-17 code path
+to 6 decimals).
+
+1. Aligned subtractive feedback: fb_wire="aligned" replaces
+   W_fb at init with -W_prox.T, rescaled to the Frobenius norm
+   of the random W_fb it replaces, so at the same fb_gain the
+   drive magnitude matches the random wire and only the
+   direction differs. Reproduces AGY's seed-241 control
+   EXACTLY (normal_acc 0.2330, omit_m2 on 1.000 / cut 0.966,
+   omit_m1 on 0.8034, p1_cos 0.8565, err_last 1.6162,
+   cos_p1_omit_m2 on 0.036 / cut 0.401, fb_drive_ratio 0.383).
+   At gain 0.3 the gate fails (p1_cos 0.9667, gap 0.000).
+2. Learned back-projection feedback: fb_wire="learned" starts
+   as the aligned map and is trained by a local composite
+   delta rule (gradient descent on
+   (1/2)||-d1 - W_prox @ W_fb @ d1||^2, NLMS form), so the
+   feedback, passed through the readout, subtracts the
+   prediction from the code. This is NOT AGY's literal
+   formula (delta W_fb proportional to (r1 - W_fb d1) d1^T):
+   that rule was implemented first and measured, and it is
+   unusable. On seed 241 it collapses at gain 1.0
+   (normal_acc 0.061, chance 0.0625, feedback 4.8x the total
+   drive) and rotates AWAY from the aligned direction at
+   every gain (fb_align -0.02 at 0.1, 0.11 at 0.3, 0.63 at
+   1.0), because d1 barely predicts the reservoir state r1
+   and the target has state scale while the drive has drive
+   scale. The composite rule is stable at every gain
+   (normal_acc 0.232 to 0.240), keeps its subtractive
+   direction (fb_align 0.91), and grows its norm from 14.20
+   to about 17.2. The deviation from AGY's literal formula
+   is deliberate, measured, and documented in the protocol.
+3. Blank token: _encode returns the zero vector for tok == K.
+   No existing code passes token K, so no previous result
+   changes. Used for occlusion and rollout blanks.
+4. Corrected drive ratio: fb_drive_ratio = ||fb|| / ||total
+   drive|| (round 17's fb_rms_ratio divided by the bottom-up
+   norm only and overstated the feedback fraction by about
+   1.7x).
+
+### Design
+
+Tasks: planted1-occ, planted2-occ (40% of filler positions
+blanked in train AND test; motif positions and the filler
+probe position never occluded; mask deterministic per
+(task, seed, split); calibration and prototypes on CLEAN
+train), sine (no occlusion). Seeds 302..321 (20 fresh).
+Round-15 winner configs (planted alpha 1.0, smooth 0.0,
+eta_d 0.05; sine eta_d 0.2), 5 epochs.
+
+Validation: 3 wire types (aligned, learned, random) x 3
+gains (0.1, 0.3, 1.0) on planted1-occ, val seeds 302..306.
+Selection per wire type: largest val on-cut omit_m2 gap
+among gains passing the state gate (val p1_cos < 0.90) and
+stable (r1_max < 10); tie-break smallest gain. If no gain
+passes the gate, the largest gap among stable gains wins
+and the gate failure is flagged. The random wire's test gain
+is the ALIGNED winner's gain (matched control).
+
+Test: 5 nets per (task, seed), 11 lines per (task, seed),
+660 test lines total. Conditions: aligned on/cut/shuffle,
+learned on/cut/shuffle, random on/cut/shuffle (at the
+aligned gain), wire-off, frozen-aligned.
+
+Bars (exact Student-t, t(19) = 2.0930, correcting the
+round-17/18 z=1.96 convention; lag-2 uses the SAME
+0.10/0.05 floors as lag-1, fixing the round-17 analyzer
+bug). B' (aligned wire is causal): B1 on-cut omit_m2 >=
++0.05 with lower t-CI > 0; B2 on-shuffle >= +0.05; B3
+p1_cos mean < 0.90; B4 on-off CI excludes 0; B5 explaining
+away (err_mag_last on < off, upper t-CI < 0); B6
+cos_p1_omit_m2 on < cut with on mean < 0.20; B7 guard
+(normal_acc >= 0.80x wire-off). B8 (secondary): aligned
+gap exceeds random gap by >= +0.05. B9 (secondary):
+learned on-cut gap >= +0.05. B10 (diagnostic): learned gap
+minus aligned gap. B' passes iff B1-B6 pass and B7 passes.
+D (rollout): D1-D3 sine rollout_acc on-cut / on-shuffle /
+on-off >= +0.10; D4 sine late rollout_acc mean >= 0.30 with
+lower t-CI > 0.20 (chance 0.031); D5-D6 planted rollout_comp
+on-cut / on-shuffle >= +0.20; D7 (secondary) learned sine
+rollout >= +0.10; D8 guard frozen sine rollout < 0.10. D
+passes iff D1-D6 pass and D8 passes. Thesis-level rule
+(AGY): predictive-coding causality is established iff B'
+AND D both pass.
+
+Pre-registered "causal but small" outcome: if B1 (or B2,
+or B9) has mean > 0 with lower t-CI > 0 but the mean is
+below the floor, the round reports "causal but small" as a
+distinct outcome (neither pass nor fail).
+
+Continuous re-validation is SPLIT into round 21
+(Convention-A Lorenz/var-sine re-validation plus NARMA-10
+and Mackey-Glass tau 17, column-standardized ridge probes,
+local parameter-free continuous readout). It is sketched
+in the protocol, not implemented in round 20.
+
+### Smoke results (VM, seed 302, rpc_round20_smoke.py)
+
+- S1 occlusion: deterministic=True, 1235 blanks in the
+  200-sequence train split, 0 at motif positions, 0 at the
+  probe position. PASS.
+- S2 repro gain-0: driver normal_acc 0.195652, omit_m2
+  0.875000, identical to the round-17 code path to 6
+  decimals. PASS.
+- S3 aligned gate: p1_cos 0.8033 (< 0.90), on-cut gap
+  +0.0167, normal_acc 0.2383 (5 epochs, gain 1.0, occluded).
+  PASS. Note: the occluded single-seed gap (+0.017) is
+  SMALLER than the clean gap (+0.034 on seed 241), so the
+  B1 floor (0.05) is above both measured single-seed gaps
+  and the round may report "causal but small" rather than
+  a pass.
+- S4 shuffle RMS: on 0.2781, shuffle 0.2756, relative
+  difference 0.0090 (within 5%). PASS.
+- S5 clamp_frac: 0.0000. PASS.
+- S6 learned stable: normal_acc 0.2296, fb_align 0.912,
+  fb_norm 17.20, r1_max 0.97, err_last 1.6213 (5 epochs,
+  gain 1.0, occluded). PASS.
+- S7 rollout: sine rollout_acc 0.160, rollout_acc_late 0.030
+  (n=20), planted rollout_comp 0.680 (n=50), frozen sine
+  rollout_acc 0.043 (near chance 0.031). PASS. The sine
+  rollout decays to chance by the late steps; the frozen
+  rollout is near chance, so the D8 guard should hold.
+- S8 CLI resumable: val lines 1 (expect 1), test lines 11
+  (expect 11) after two runs each. No duplicate lines. PASS.
+
+### Files
+
+- PROTOCOL-R20-ALIGNED.md (frozen Nov 27, 2026; 11-point
+  self-critique).
+- rpc_round20_aligned.py (driver; val and test phases;
+  resumable JSONL; one BLAS thread per process).
+- r20/r20_analyze.py (analyzer; exact-t CIs; bar table and
+  verdict; writes r20/r20_analysis.md).
+- r20/monitor.py (val -> winner pick -> test -> analysis;
+  9 val workers, 6 test workers, 660 test lines; detached
+  workers, marker at launch time; Beast venv).
+- rpc_round20_smoke.py (8 checks, seed 302).
+- rpc_v2.py (A29: fb_wire, blank token, corrected drive
+  ratio, composite learned rule).
+
+### Two sharpest risks in this design
+
+1. The B1 floor (0.05) is above every measured single-seed
+   gap (+0.034 clean, +0.017 occluded). If the 20-seed mean
+   follows the single-seed pattern, B1 fails and the round's
+   headline is "causal but small" (if the CI excludes 0) or
+   a null. The design handles this honestly (the
+   pre-registered "causal but small" outcome), but the
+   headline pass is genuinely uncertain, and D (the rollout)
+   is the more sensitive test.
+2. The learned wire is our fix, not AGY's formula. The
+   composite rule is stable and aligned in smoke, but it has
+   never been shown to beat the fixed aligned wire on any
+   bar, and its fixed point (a map about 1.2x the aligned
+   norm after 5 epochs) may still be growing when training
+   stops. If the learned wire's bars (B9, D7) fail while the
+   aligned wire's pass, the round cannot say whether a
+   longer-trained learned wire would have won; that is a
+   round-21 question, not a round-20 conclusion.
+
+### Next step
+
+Launch on Beast via r20/monitor.py (val -> winner -> test
+-> analysis). Estimated about 6 CPU-hours, about 1 hour
+wall with 6 workers. After completion: verify the analysis
+by independent recomputation from the raw JSONL, write the
+verdict as section 59, update README Status and MEMORY.md,
+log a tracking entry on goal_a9a871e81255, remove the
+r20-monitor cron, and deliver the verdict to Reza.
+
+### 58.1 Launch (Nov 27, 2026, 02:12 PT)
+
+Main-agent verification before launch: all 8 smoke checks
+re-run independently on the VM, all PASS with numbers
+identical to the design agent's report (S3 p1_cos 0.8033,
+on-cut gap +0.0167; S6 fb_align 0.912, fb_norm 17.20; S7
+sine rollout 0.160, late 0.030, planted comp 0.680, frozen
+0.043). A29 code read in rpc_v2.py (aligned = -W_prox.T
+norm-matched; learned composite rule with the AGY-formula
+deviation documented; blank token; corrected drive ratio).
+Files copied to Beast in /tmp/rpc-r20.tar.gz (7,911,654
+bytes) and extracted at /home/reza/zfs-1tb/rpc-sim/thesis-rpc/.
+Beast smoke re-run PASSED 8/8 with VM-identical numbers.
+9 validation workers launched via r20/monitor.py (PIDs
+542857-542865, 3 wire types x 3 gains, planted1-occ, seeds
+302-306); val_launched marker written; 0 lines at launch.
+Monitor cron r20-monitor created (every 30 min). Beast
+load at launch 12.25 on 12 cores, driven by the connectome
+chat's Allen binwidth runs (about 10 workers, untouched);
+round-20 wall time may stretch past the about 1 hour
+estimate. Verdict goes in section 59.
+
+### 58.2 Validation winners (Nov 27, 2026, 02:44 PT)
+
+45/45 val lines (5 per config), 45 unique keys, no
+Traceback. Mean val on-cut omit_m2 gap (planted1-occ,
+seeds 302-306): aligned 0.1 +0.005 (p1_cos 0.986), 0.3
++0.007 (0.949), 1.0 +0.017 (0.805); learned 0.1 +0.005
+(0.983), 0.3 +0.014 (0.931), 1.0 -0.002 (0.751); random
+0.1 -0.007 (0.990), 0.3 +0.004 (0.968), 1.0 -0.088
+(0.754). Winners (per wire type, largest gap among gains
+passing the state gate p1_cos < 0.90 and r1_max < 10):
+aligned 1.0, learned 1.0, random 1.0; all gates PASS. The
+gate does real work: for every wire type, gains 0.1 and
+0.3 fail it (p1_cos 0.93 to 0.99), so only gain 1.0 moves
+module 1's state enough to count as a live wire. The
+learned winner looks odd (gain 1.0 gap -0.002 beats gain
+0.3 gap +0.014) only until the gate is applied: gain 0.3
+fails the gate at p1_cos 0.931, so gain 1.0 is the only
+gated candidate. Random at gain 1.0 actively hurts: gap
+-0.088 and val_acc 0.190 against aligned 0.236 and learned
+0.232. The aligned val gap (+0.017) matches the smoke S3
+single-seed gap (+0.0167) and sits well below the B1 floor
+(0.05), so the test phase will likely land "causal but
+small" if the 20-seed mean follows validation. Test phase
+launched 02:44 PT: 6 detached workers (3 tasks x 2
+seed-shards, seeds 302-321), test_launched marker written,
+0 lines at launch.
+
+## 59. Round 20 verdict: B' FAILS, D FAILS, aligned wire is "causal but small" on lag-1 only (Nov 27, 2026, 04:14 PT)
+
+Test phase finished 04:14 PT: 660/660 test lines (20 seeds
+302-321 x 11 configs x 3 tasks), 660 unique
+(task, config, seed) keys, no Traceback in any worker log,
+analysis marker written, r20_analyze.py rc=0. The analysis
+(r20/r20_analysis.md) was verified by independent
+recomputation from the raw JSONL
+(r20/verify_r20.py, fresh code, exact Student-t CIs,
+t(19) = 2.0930): every headline mean matches to 3
+decimals. Two values sit on exact .0005 ties (sine
+aligned-cut rollout_acc 0.1835, D1 mean -0.0365) and the
+analysis rounds both half-up (0.184, -0.037); the
+recomputation agrees under that rule.
+
+### Bar table: 9 of 28 pass
+
+Passes: B3, B4, B6, B7, B8 on lag-1; B3, B6, B7 on lag-2;
+D8. Everything else fails.
+
+1. B1 lag-1 FAIL: aligned on-cut omit_m2 +0.014, CI
+   [0.005, 0.022]. Bar is >= +0.05 with lower CI > 0.
+2. B2 lag-1 FAIL: aligned on-shuffle omit_m2 +0.033, CI
+   [0.022, 0.044]. Same bar.
+3. B3 lag-1 PASS: aligned p1_cos mean 0.804, CI
+   [0.797, 0.811]. Bar is mean < 0.90.
+4. B4 lag-1 PASS: aligned on-off omit_m2 +0.009, CI
+   [0.003, 0.015]. Bar is CI excludes 0.
+5. B5 lag-1 FAIL: err_mag_last on-off +0.0138, CI
+   [0.008, 0.020]. Bar wants mean < 0 with upper CI < 0
+   (explaining away). The sign is wrong: the wire ADDS
+   error magnitude at the last step.
+6. B6 lag-1 PASS: cos_p1_omit_m2 on-cut -0.391, CI
+   [-0.408, -0.374]; on mean 0.033, CI [0.002, 0.063].
+   Bar is mean < 0 with upper CI < 0 and on mean < 0.20.
+7. B7 lag-1 guard PASS: aligned normal_acc 0.232 vs
+   wire-off 0.221 (guard >= 0.80x).
+8. B8 lag-1 PASS: aligned gap minus random gap +0.071, CI
+   [0.048, 0.093]. Bar is >= +0.05 with lower CI > 0.
+9. B9 lag-1 FAIL: learned on-cut omit_m2 +0.004, CI
+   [-0.000, 0.009]. Bar is >= +0.05 with lower CI > 0.
+10. B1 lag-2 FAIL: -0.006, CI [-0.016, 0.004].
+11. B2 lag-2 FAIL: +0.015, CI [0.000, 0.030].
+12. B3 lag-2 PASS: p1_cos mean 0.810, CI [0.802, 0.817].
+13. B4 lag-2 FAIL: on-off omit_m2 -0.009, CI [-0.019, 0.000].
+14. B5 lag-2 FAIL: err_mag_last on-off +0.0181, CI
+    [0.013, 0.023]. Wrong sign again.
+15. B6 lag-2 PASS: cos_p1_omit_m2 on-cut -0.381, CI
+    [-0.402, -0.360]; on mean -0.038, CI [-0.075, -0.001].
+16. B7 lag-2 guard PASS: aligned normal_acc 0.224 vs
+    wire-off 0.220.
+17. B8 lag-2 FAIL: aligned gap minus random gap +0.049, CI
+    [0.028, 0.071]. One point under the +0.05 floor.
+18. B9 lag-2 FAIL: learned on-cut omit_m2 -0.027, CI
+    [-0.042, -0.013]. The learned wire hurts on lag-2.
+19. B10 diagnostic: learned gap minus aligned gap -0.009,
+    CI [-0.018, -0.001] on lag-1 and -0.021, CI
+    [-0.032, -0.010] on lag-2. Learned is worse than
+    aligned on both lags, and both CIs exclude 0.
+20. D1 FAIL: sine rollout_acc aligned on-cut -0.037, CI
+    [-0.051, -0.022]. Bar is >= +0.10.
+21. D2 FAIL: sine rollout_acc on-shuffle -0.025, CI
+    [-0.037, -0.014].
+22. D3 FAIL: sine rollout_acc on-off -0.076, CI
+    [-0.092, -0.061].
+23. D4 FAIL: sine late rollout_acc (on) mean 0.051, CI
+    [0.038, 0.064]. Bar is mean >= 0.30 with lower CI >
+    0.20; chance is 0.031.
+24. D5 lag-1 FAIL: rollout completion on-cut -0.146, CI
+    [-0.190, -0.102]. Bar is >= +0.20.
+25. D6 lag-1 FAIL: rollout completion on-shuffle -0.109, CI
+    [-0.157, -0.061].
+26. D5 lag-2 FAIL: rollout completion on-cut -0.225, CI
+    [-0.265, -0.185].
+27. D6 lag-2 FAIL: rollout completion on-shuffle -0.155, CI
+    [-0.204, -0.106].
+28. D7 FAIL: sine rollout_acc learned on-cut -0.035, CI
+    [-0.047, -0.022].
+29. D8 guard PASS: frozen sine rollout_acc mean 0.032, CI
+    [0.025, 0.040]. Guard is mean < 0.10, so generation
+    needs learning. But the learned net generates WORSE
+    with the wire on.
+
+### Verdict
+
+1. Experiment B' (aligned wire is causal): FAILS. B1, B2,
+   B5, B9 fail on lag-1; B1, B2, B4, B5, B8, B9 fail on
+   lag-2. B' passes iff B1-B6 pass and B7 passes.
+2. Experiment D (multi-step generation through the
+   top-down pathway): FAILS. D1-D7 all fail, and every
+   sign is negative: the wire harms rollout, it does not
+   help it.
+3. Thesis-level rule (AGY): predictive-coding causality
+   is established iff B' AND D both pass. Not established.
+4. Pre-registered "causal but small" outcome: APPLIES, on
+   lag-1 only. B1 lag-1 (+0.014, CI [0.005, 0.022]) and
+   B2 lag-1 (+0.033, CI [0.022, 0.044]) both have mean >
+   0 with lower CI > 0 and mean below the +0.05 floor.
+   It does NOT apply to B9 lag-1 (+0.004, CI
+   [-0.000, 0.009], CI touches 0), B2 lag-2 (+0.015, CI
+   [0.000, 0.030], lower bound is 0.000, not above 0),
+   B1 lag-2 (-0.006), or B9 lag-2 (-0.027).
+
+### What the numbers say
+
+1. The aligned wire is genuinely causal on lag-1
+   omission, but small: +1.4 points on-cut, +3.3 points
+   on-shuffle. This is the outcome the design predicted
+   as likely (section 58 risk 1): the B1 floor (0.05) sat
+   above every measured single-seed gap (+0.034 clean,
+   +0.017 occluded), and the 20-seed mean (+0.014)
+   confirms it. The val gap (+0.017) predicted the test
+   gap almost exactly.
+2. The direction matters, not just the drive. B8 lag-1
+   passes (+0.071): the aligned wire beats the random
+   wire by more than the floor. The random wire at gain
+   1.0 actively hurts (val gap -0.088; test random-on
+   omit_m2 0.873 vs random-cut 0.931, so cutting the
+   random wire helps). Lag-2 B8 (+0.049) misses the floor
+   by one point.
+3. The mechanism signature is present even where the
+   accuracy gain is small. B6 passes on both lags: cutting
+   the wire raises cos_p1_omit_m2 by about 0.39, so the
+   wire does rotate module-1 state away from the
+   prediction when module 2 is omitted. But B5 fails on
+   both lags with the wrong sign: err_mag_last is HIGHER
+   with the wire on (+0.0138, +0.0181), so there is no
+   explaining-away signature. The wire changes the state
+   in the predicted direction without reducing the error
+   it is supposed to explain away.
+4. The learned wire fails everywhere. B9 is a null on
+   lag-1 and negative on lag-2; D7 is negative; B10 shows
+   it loses to the fixed aligned wire on both lags. The
+   composite rule stays stable and aligned (fb_align 0.91
+   planted, 0.84 sine) but never beats the fixed wire on
+   any bar. Whether a longer-trained learned wire would
+   win is a round-21 question, not a round-20 conclusion.
+5. Experiment D is a clean negative with the wrong sign.
+   Sine rollout_acc: on 0.147, cut 0.184, wire-off 0.223.
+   Cutting the wire, or never building it, generates
+   better. Late rollout accuracy 0.051 is barely above
+   chance (0.031) and far below the 0.30 bar. Planted
+   rollout completion is higher with the wire cut
+   (-0.146 lag-1, -0.225 lag-2). The D8 guard passes, so
+   generation needs learning, but the learned net plus
+   the aligned wire generates worse than the learned net
+   alone.
+6. The wire costs one-step accuracy on sine and nothing
+   on planted. Sine normal_acc: aligned-on 0.666 vs
+   wire-off 0.892, a 23-point cost. Planted normal_acc:
+   aligned-on 0.232 vs wire-off 0.221, no cost (B7 guard
+   passes on both lags). The wire's cost is
+   task-dependent, which matters for round 21: the
+   continuous tasks look more like sine than like
+   planted, so carrying the aligned wire at gain 1.0 into
+   round 21 carries a known one-step cost.
+7. The gate did its job in validation (section 58.2) and
+   the test confirms the choice: only gain 1.0 passes the
+   state gate on any wire type, and the test winners are
+   all gain 1.0. Nothing in the test phase contradicts
+   the validation pick.
+
+### Files
+
+- r20/r20_analysis.md (analyzer output, 660 lines,
+  660 unique keys).
+- r20/r20_planted1-occ_test_302-321.jsonl,
+  r20_planted2-occ_test_302-321.jsonl,
+  r20_sine_test_302-321.jsonl (220 lines each).
+- r20/r20_planted1-occ_val_*.jsonl (45 lines).
+- r20/verify_r20.py (independent recomputation; all
+  headline means match to 3 decimals).
+- r20/winner.json (aligned 1.0, learned 1.0, random 1.0).
+
+### Next step
+
+Round 21 (continuous re-validation: Convention-A
+Lorenz/var-sine plus NARMA-10 and Mackey-Glass tau 17,
+column-standardized ridge probes, local parameter-free
+continuous readout) is sketched in
+PROTOCOL-R20-ALIGNED.md, not implemented. Open design
+question for round 21: whether to carry the aligned wire
+at gain 1.0 into the continuous tasks given the 23-point
+sine one-step cost and the negative rollout sign, or to
+test the wire on/off as a factor. The r20-monitor cron is
+removed; its job is done.
+## 60. Round 21: continuous re-validation (Convention-A + NARMA-10 / Mackey-Glass) -- DESIGN + LAUNCH
+
+(Nov 27, 2026. Design subagent report; protocol frozen in
+PROTOCOL-R21-CONTINUOUS.md. Launched on Beast Nov 27, 2026,
+05:26 PT; see the launch entry at the end of this section.)
+
+### Why this round exists
+
+Round 18 concluded a "continuous wall" survives correct
+scoring: the delta model could not beat persistence on
+Lorenz or var-sine with the frozen round-15 configuration
+(Convention B). Section 57 showed that conclusion rested on
+a hyperparameter carryover, not a wall: with Convention-A
+hyperparameters from round 15's own grid, the prototype
+readout beats persistence on both tasks (Lorenz MSE 5.07 vs
+persistence 13.05; var-sine MSE 0.0370 vs persistence
+0.0548). Round 21 asks whether that finding survives valid
+validation on fresh seeds, and whether it extends to
+continuous tasks that need multi-step memory and cannot be
+solved by a 2-bin lookup (Markov-2 trivially solves Lorenz
+and var-sine: 99.50% / 99.82% of test 2-grams appear in
+training). Round 20 settled the wire question for tokens
+(B' FAILS, D FAILS, section 59); round 21 does NOT relitigate
+it, it tests the wire as a factor on continuous tasks.
+
+### Design (protocol PROTOCOL-R21-CONTINUOUS.md)
+
+1. Tasks (all K = 32, Convention-A one-step scoring):
+   lorenz (200/50/50, len 24), varsine (100/20/20, len 100),
+   narma10 NEW (100/20/20, len 100), mackeyglass NEW
+   (discrete map, delay 17 steps; 100/20/20, len 100).
+2. Preregistered primaries: lorenz alpha 1.0 / smooth 2.0 /
+   eta_d 0.2; varsine alpha 0.7 / smooth 2.0 / eta_d 0.2;
+   new tasks take the val winner (procedure-preregistered).
+   Val token grid G1-G5 (the two primaries, the sigma
+   neighbours, and the Convention-B carryover reference);
+   val bump grid sigma 2.0 / 3.0. Val seeds 322-326,
+   test seeds 327-346 (20 fresh; no overlap with 262-281
+   or 302-321).
+3. Wire decision (the section-59 open question, RESOLVED):
+   test aligned wire on/off as a factor; wire OFF is
+   primary, wire ON (aligned, gain 1.0) is a secondary arm
+   on the token input only. Reasons: round 20 measured a
+   23-point one-step sine cost for the wire and a negative
+   rollout sign, so carrying it as primary would confound
+   "does delta learn continuous trajectories" with "does the
+   wire tax one-step prediction"; the burden of proof is on
+   the wire. If wire-on beats wire-off on any task (paired,
+   exact-t CI above 0), that is new evidence FOR the wire.
+4. Readouts, all three from the SAME run (exactly matched):
+   prototype (hard argmax, primary), centroid
+   (softmax-weighted prototype centroid, beta = 10 primary,
+   5 and 20 as sensitivity, no new fitted weights), and
+   ridge (lam = 1.0, COLUMN-STANDARDIZED -- the D8 lesson;
+   the raw ridge is also computed and reported, no bar uses
+   it). Frozen control is a TWIN net (same seed/init, never
+   trained), verified bit-identical to a standalone frozen
+   run.
+5. Baselines per task/seed: Markov-1/2, persistence,
+   train-mean, ESN class-argmax, and ESN scalar ridge (raw
+   AND standardized; AGY's strongest comparator: Lorenz
+   3.287 / 2.097, var-sine 0.0191 / 0.0072).
+6. Bars (54 rows; paired per-seed differences, exact
+   Student-t 95% CIs, t(19) = 2.0930): W1-W10 (Convention-A
+   re-validation), N1-N8 (new tasks, incl. beats-Markov-2),
+   R1/R3/R4 x4 (standardized ridge), C1/C2 x4 (centroid),
+   F1 x4 (wire effect, three-way HELPS/HURTS/NULL) + F2 x4
+   (wire-live gate, mean fb_drive_ratio > 0.05), B1/B2 x4
+   (bump input). Verdict: wall FALLS iff W1, W2, W7, W8 all
+   pass; DISCRIMINATION iff N7 and N8 pass. Even a
+   wall-fall does NOT establish predictive coding (round 20
+   failed B' and D); it establishes only that the
+   signed-error rule learns continuous trajectories.
+7. Self-critique (protocol section 10, 10 points): the wire
+   decision cuts both ways (bump-by-wire interaction
+   untested); both primaries were selected on seeds 262-266
+   (var-sine's number is now reproduced exactly, so the
+   remaining risk is selection, not scoring); val-overfitting
+   on 5 seeds (new tasks have no preregistered anchor);
+   centroid beta=10 unvalidated; bump sigma picked on 2
+   values; twin exactness verified; new-generator risk;
+   compute (~4 CPU-hours); ESN scalar ridge likely unbeaten;
+   one-step horizon only (h>1 rollout is a follow-up).
+
+### Smoke results (VM, `rpc_round21_smoke.py`, 777s, zero failures)
+
+1. Lorenz Convention-A reproduces EXACTLY: acc 0.4285,
+   MSE 5.073, per-seed [5.68, 4.62, 3.75, 5.83, 5.48].
+2. Var-sine Convention-A reproduces AGY EXACTLY with the
+   round-21 driver: acc 0.3230, MSE 0.0370, per-seed
+   [0.0423, 0.0368, 0.0371, 0.0207, 0.0479], diff -0.0000.
+   The var-sine primary is no longer reviewer-reported-only.
+3. D8 re-measured exactly: standardized ridge ties
+   13.976 / 13.976 (trained/frozen); raw 14.904 trained /
+   14.073 frozen (the frozen-ridge win reproduces, and it
+   is the artifact); proto trained 24.877 vs frozen 166.261.
+4. New tasks sane: narma10 range [0.182, 0.939], 25/32 bins,
+   persist 0.0097, Markov-2 0.0125 (persistence WINS: the
+   driving input u is unobserved, so Markov-2 is
+   non-trivial here, not unlearnable); mackeyglass range
+   [0.370, 1.344], 22/32 bins, persist 0.0012, Markov-2
+   0.0009. Single-seed G1 delta: narma10 proto 0.0124,
+   centroid10 0.0081, ridge_std 0.0077; mackeyglass proto
+   0.0020, centroid10 0.0021, ridge_std 0.0027. On this
+   seed/config the prototype readout loses to persistence
+   on BOTH new tasks: one-step prediction there is
+   persistence-dominated, so N1/N2 are genuinely hard.
+5. Driver CLI resumable (10 lines, re-run adds 0).
+   Frozen twin bit-identical to standalone frozen
+   (proto MSE diff 0.00e+00).
+6. Centroid sane: argmax(sims) == pred on all 1150 steps;
+   beta 5/10/20 MSE 10.5741 / 5.0133 / 4.4831 vs proto
+   6.6547 (lorenz seed 322): beta=5 hurts, beta=10/20
+   help; the centroid genuinely improves on argmax.
+7. Wire gate: mean fb_drive_ratio 0.2982 (fb_rms 0.4273)
+   on lorenz seed 322, 6x above the 0.05 gate. Single-seed
+   calibration: wire-on proto MSE 3.7809 vs wire-off
+   6.6547 (the wire HELPED here). One seed proves nothing;
+   F1 decides over 20 seeds.
+8. Bump path verified AFTER the smoke run (the smoke
+   script only exercised token arms): one bump test arm
+   (lorenz seed 322, sigma 2.0) gives bump_delta proto
+   6.914 / centroid10 5.529 / ridge_std 6.740 and
+   bump_frozen proto 134.384; the val-bump CLI writes both
+   sigma rows (val MSE 5.8291 at sigma 2.0, 5.0521 at
+   sigma 3.0). The bump machinery works; the smoke script
+   does not cover it (noted for the next smoke revision).
+
+### Two fixes found during the smoke test
+
+1. NARMA-10 divergence (real bug, fixed before launch).
+   The recurrence has an unstable fixed point near y = 1.02
+   (mean-field roots 0.38 and 1.02); about 1 in 1000
+   sequences diverges (seed 329, sequence 46 went to inf
+   during burn-in). The generator now resamples divergent
+   draws and draws leaving the bin range (canonical system
+   conditioned on its stable basin; measured 10-seed range
+   [0.171, 0.974] over 1400 sequences, no warnings). The
+   u-term lag was also corrected to the canonical 9
+   (the first version used lag 10). Mackey-Glass is
+   globally bounded and needed no fix.
+2. Three smoke-check premises were wrong and were
+   corrected, not the code under test: (a) check 4c assumed
+   Markov-2 must beat persistence for a task to be
+   learnable -- false on NARMA-10, where the unobserved
+   driving input makes Markov-2 lose while a learned
+   readout still wins (now a report, not a gate); (b) check
+   7b assumed centroid beta=20 should equal the prototype
+   readout -- false, the softmax still mixes neighbours and
+   beats argmax by 33% on lorenz seed 322 (now a factor-of-2
+   sanity gate); (c) check 8 crashed with KeyError because
+   the wire-on arm yields token_w_* rows, not token_* rows
+   (fixed: run both arms for the comparison). The smoke
+   test was re-run in full after the fixes and passed with
+   zero failures; the deterministic re-run reproduced every
+   number identically.
+
+### Analyzer / monitor verification (synthetic data, then deleted)
+
+The analyzer and the monitor's pick functions were verified
+on fabricated data with known expected outcomes before
+launch (files deleted afterwards; r21/ holds only the
+deliverables). Analyzer: 54 bars, 36 pass / 13 fail / 5 n/a,
+every outcome matched the design, including the F1
+three-way (HURTS on three tasks, HELPS on one) and the
+W10 n/a case. One logic gap found and fixed: the verdict
+had no mixed case (N1 passes on one new task only), and its
+text wrongly read "does not beat persistence on the new
+tasks"; the analyzer now names the winning task
+("BEATS MARKOV-2 ON ONE TASK ONLY" / "MIXED"). Monitor
+picks verified: token winners (lorenz G1, varsine G2,
+narma10 G1, mackeyglass G3), bump sigmas, final winner.json
+shape, expected test lines 560 (no conditional primary arm
+when winner == primary).
+
+### Launch checklist (for the parent agent; NOT done here)
+
+1. Copy to Beast: `rpc_round21_continuous.py`,
+   `r21/r21_analyze.py`, `r21/monitor.py`,
+   `PROTOCOL-R21-CONTINUOUS.md`, and the updated
+   `baselines.py` (new generators) to the Beast rpc-sim
+   copy. Do NOT copy `rpc_round21_smoke.py` results or the
+   /tmp smoke files.
+2. Beast smoke: one val invocation (lorenz, seeds 322-323)
+   and one test-arm invocation, confirming the driver runs
+   under the Beast venv.
+3. Launch the monitor (it drives val -> winners -> test ->
+   analysis) and create the r21-monitor cron (every 30 min,
+   r20-monitor pattern).
+4. Expected line counts: token val 100, bump val 40, test
+   560 base (up to 600 with conditional primary arms).
+   Cost about 4 CPU-hours; about 30-60 minutes wall with
+   8 parallel workers on an idle machine.
+5. On completion: write the verdict as the next free section
+   (61), update the README Status and MEMORY.md, log a
+   tracking entry on goal_a9a871e81255, and report to Reza.
+
+### 60.1 Launch (Nov 27, 2026, 05:26 PT)
+
+Main-agent verification before launch: the VM smoke was
+re-run independently (785 s, exit 0, zero failures) and
+every number reproduced the design agent's report exactly
+(Lorenz Convention-A acc 0.4285 / MSE 5.073 per-seed
+[5.68, 4.62, 3.75, 5.83, 5.48]; var-sine 0.3230 / 0.0370
+diff -0.0000 vs AGY; D8 standardized ridge ties 13.976 /
+13.976, raw reproduces the frozen win 14.073 < 14.904;
+NARMA-10 G1 seed 322 proto 0.0124 / centroid10 0.0081 /
+ridge_std 0.0077; Mackey-Glass 0.0020 / 0.0021 / 0.0027;
+CLI resumable 10 -> 10; frozen twin diff 0.00e+00;
+centroid beta 5/10/20 = 10.5741 / 5.0133 / 4.4831 vs proto
+6.6547; wire gate fb_drive_ratio 0.2982, wire-on proto
+3.7809 vs off 6.6547 on lorenz seed 322). Protocol sections
+1-10 and the wire decision (section 5) read in full; the
+verdict rules and the 10-point self-critique stand.
+Files copied to Beast in /tmp/rpc-r21.tar.gz (36,150 bytes):
+rpc_round21_continuous.py, r21/r21_analyze.py, r21/monitor.py,
+PROTOCOL-R21-CONTINUOUS.md, baselines.py (new make_narma10 /
+make_mackeyglass verified present on Beast). Beast smoke
+PASSED: lorenz val seeds 322-323 wrote 10 lines; lorenz
+test seed 327 wrote 7 rows (token_delta acc 0.397 MSE
+3.1756 ridge_std 5.0831; token_frozen 0.020 / 355.1006 /
+5.1177; token_w_delta 0.390 / 3.9210 / 6.4896; bump_delta
+0.423 / 3.0689 / 5.3452; baseline persist 14.9004,
+Markov-2 1.2570, ESN scalar standardized 1.7694). Smoke
+files removed after the check. One monitor run launched 4
+detached token-val workers (PIDs 551476-551479, one per
+task, seeds 322-326); token_val_launched marker written;
+0 lines at launch. Monitor cron r21-monitor created
+(every 30 min). Beast load at launch 24.20 on 12 cores
+(connectome Allen binwidth runs, untouched); the protocol
+says to give the round a full day, not an hour. Verdict
+goes in section 61.
+
+### 60.2 Token validation winners (Nov 27, 2026, 06:44 PT)
+
+100/100 token val lines (25 per task), 25 unique keys per
+task, no Traceback. Mean val prototype MSE per grid config
+(seeds 322-326): lorenz G1 4.9682, G2 6.1658, G3 6.7281,
+G4 4.6268, G5 8.1088; varsine G1 0.0373, G2 0.0391, G3
+0.0320, G4 0.0240, G5 0.0539; narma10 G1 0.0138, G2 0.0133,
+G3 0.0127, G4 0.0129, G5 0.0109; mackeyglass G1 0.0021, G2
+0.0030, G3 0.0035, G4 0.0025, G5 0.0031. Winners
+(winners_token.json): lorenz G4 (alpha 1.0, smooth 3.0,
+eta_d 0.2, 4.6268); varsine G4 (alpha 1.0, smooth 3.0,
+eta_d 0.2, 0.0240); narma10 G5 (alpha 1.0, smooth 2.0,
+eta_d 0.02, 0.0109); mackeyglass G1 (alpha 1.0, smooth 2.0,
+eta_d 0.2, 0.0021). The lorenz and varsine winners DIFFER
+from the preregistered primaries (lorenz G1 smooth 2.0;
+varsine alpha 0.7 / smooth 2.0), so the test phase runs
+conditional primary arms on both tasks (W9/W10 logic):
+the test target is 640 lines, not 560 (7 rows per
+task-seed, plus 2 conditional rows per seed on lorenz and
+varsine), and the
+round tests the val winner against the primary head to
+head on fresh seeds 327-346. Bump val launched (4 workers,
+bump_val_launched marker, 0/40 lines at launch).
+
+Bump val complete (Nov 27, 07:15 PT; 40/40 lines, 10 per
+task, no duplicate keys, no Traceback; means recomputed
+from raw JSONL, 5 seeds each): lorenz sigma 2.0 wins
+(4.3965 vs 3.0 at 4.6281); var-sine sigma 3.0 wins
+(0.0236 vs 2.0 at 0.0390); NARMA-10 sigma 3.0 wins
+(0.0103 vs 2.0 at 0.0108); Mackey-Glass sigma 2.0 wins
+(0.0022 vs 3.0 at 0.0025). Final winners in winner.json:
+lorenz G4 + bump 2.0, var-sine G4 + bump 3.0, NARMA-10
+G5 + bump 3.0, Mackey-Glass G1 + bump 2.0. Test phase
+launched 07:15 PT (8 workers, PIDs 554081-554088, seeds
+327-346, 0 lines at launch; monitor target 640 lines).
+Beast load about 15.7.
+
+## 61. Round 21 verdict: WALL FALLS for the continuous re-validation; the signed-error rule learns continuous trajectories (Nov 27, 2026, 09:14 PT)
+
+Test complete 09:14 PT: 640 unique rows (180 lorenz, 180
+var-sine, 140 NARMA-10, 140 Mackey-Glass), 0 duplicates in
+the merged test files, 0 Tracebacks in any worker log.
+Analysis r21/r21_analysis.md, verified by independent
+recomputation from the raw JSONL (r21/verify_r21.py, fresh
+code, not the analyzer): every per-task mean, every paired
+difference and exact-t CI, all 54 bar outcomes, all
+diagnostics, and the val winners reproduce to 3 decimals.
+One sign-convention note in the verifier: F1 and the
+wire-on-frozen diagnostic are computed as on-minus-off
+there and off-minus-on in the analysis, so the signs flip
+and the magnitudes and CI endpoints match exactly.
+Main-agent second check (/tmp/r21_indep_check.py, written
+from scratch): every headline mean and every checked bar
+(W1/W2/W7/W8/W9/W10, N1/N2/N7/N8, R1/R4, F1/F2, B1,
+W3/W4/W5/W6) reproduces to 4 decimals; 640 unique keys,
+0 Tracebacks, r21-monitor cron confirmed removed.
+
+### Val winners (seeds 322-326; restated from section 60.2)
+
+1. Token: lorenz G4 (alpha 1.0, smooth 3.0, eta_d 0.2, val
+   MSE 4.6268); var-sine G4 (same config, 0.0240); NARMA-10
+   G5 (alpha 1.0, smooth 2.0, eta_d 0.02, 0.0109);
+   Mackey-Glass G1 (alpha 1.0, smooth 2.0, eta_d 0.2,
+   0.0021).
+2. Bump sigma: lorenz 2.0 (4.3965 vs 4.6281 at 3.0);
+   var-sine 3.0 (0.0236 vs 0.0390 at 2.0); NARMA-10 3.0
+   (0.0103 vs 0.0108 at 2.0); Mackey-Glass 2.0 (0.0022 vs
+   0.0025 at 3.0).
+3. Lorenz and var-sine winners differ from the
+   preregistered primaries, so the test ran the conditional
+   primary arms (token_primary_delta/frozen, 20 seeds
+   each); the new tasks take the val winner, no separate
+   primary arm.
+
+### Per-task test means (prototype MSE, 20 seeds 327-346)
+
+1. Lorenz: delta 4.2875, frozen 236.8511, wire-on delta
+   4.5180, bump delta 4.7361, persistence 12.5914,
+   Markov-2 1.3961, ESN argmax 4.5633, ESN scalar-std
+   1.7799.
+2. Var-sine: delta 0.0270, frozen 0.9303, wire-on delta
+   0.0448, bump delta 0.0274, persistence 0.0560,
+   Markov-2 0.0052, ESN argmax 0.0450, ESN scalar-std
+   0.0082.
+3. NARMA-10: delta 0.0117, frozen 0.0915, wire-on delta
+   0.0120, bump delta 0.0104, persistence 0.0091,
+   Markov-2 0.0128, ESN argmax 0.0124, ESN scalar-std
+   0.0070.
+4. Mackey-Glass: delta 0.0020, frozen 0.1911, wire-on
+   delta 0.0035, bump delta 0.0019, persistence 0.0012,
+   Markov-2 0.0009, ESN argmax 0.0013, ESN scalar-std
+   0.0004.
+
+### The wall bars (protocol section 8: wall falls iff W1, W2, W7, W8 all pass)
+
+1. W1 (lorenz primary beats persistence): paired diff
+   +8.3039, 95% CI [7.5853, 9.0225], PASS.
+2. W2 (var-sine primary beats persistence): +0.0290, CI
+   [0.0219, 0.0360], PASS.
+3. W7 (lorenz delta beats frozen): +232.5637, CI
+   [188.6496, 276.4778], PASS.
+4. W8 (var-sine delta beats frozen): +0.9033, CI
+   [0.8092, 0.9974], PASS.
+5. WALL FALLS for the re-validation tasks. The
+   Convention-A prototype readout beats persistence on
+   fresh seeds, and the win is due to learning: the
+   trained net beats its frozen twin by a factor of 55
+   on Lorenz (4.29 vs 236.85) and 34 on var-sine (0.027
+   vs 0.930). Round 18's "continuous wall" does not
+   survive valid validation on fresh seeds.
+6. The preregistered primaries pass too (W9 +7.6045, CI
+   [6.8184, 8.3906]; W10 +0.0187, CI [0.0131, 0.0244]),
+   so the wall-fall does not depend on the val winners:
+   the preregistered configs (lorenz primary MSE 4.9869,
+   var-sine primary 0.0372) beat persistence on their
+   own. Val selection is not doing the work.
+
+### Bar table: 26 pass, 24 fail, 4 n/a (measurement-only F1), of 54 rows
+
+1. W3 FAILS: lorenz primary does not beat ESN argmax
+   (+0.2758, CI [-0.3146, 0.8663] covers 0; proto 4.2875
+   vs ESN 4.5633, nominally better but not significant).
+   W4 PASSES on var-sine (+0.0180, CI [0.0113, 0.0247]).
+2. W5/W6 PASS: primary accuracy beats Markov-1 (lorenz
+   +0.1920, CI [0.1754, 0.2086], acc 0.4047 vs 0.2127;
+   var-sine +0.0442, CI [0.0330, 0.0555], acc 0.3254 vs
+   0.2812).
+3. N1/N2 FAIL: the prototype does NOT beat persistence
+   on either new task (NARMA-10 -0.0026, CI
+   [-0.0030, -0.0022]; Mackey-Glass -0.0008, CI
+   [-0.0009, -0.0006]; both CIs entirely below 0, so
+   persistence wins cleanly). One-step prediction on
+   both new tasks is persistence-dominated, as the
+   smoke test predicted.
+4. N7 PASSES, N8 FAILS: beats Markov-2 on NARMA-10 only
+   (+0.0011, CI [0.0007, 0.0015]; Mackey-Glass -0.0011,
+   CI [-0.0013, -0.0009]). The tasks are not equally
+   discriminating. N3 passes (beats ESN argmax on
+   NARMA-10, +0.0007); N4 fails. N5/N6 pass (delta beats
+   frozen on both new tasks, +0.0798 / +0.1892), so
+   learning happens on the new tasks too, it just does
+   not reach persistence.
+5. R1 FAILS on all 4 tasks: the standardized trained
+   ridge does not beat the standardized frozen ridge
+   anywhere (lorenz +0.0185, CI [-0.0122, 0.0493];
+   var-sine +0.0001, CI [-0.0001, 0.0004]; NARMA-10
+   -0.0000; Mackey-Glass +0.0000). But it fails BY TIE,
+   not by a frozen win: no CI sits below 0. Protocol
+   section 8 item 5 ("delta actively harms... prototype
+   wins are a readout artifact") does NOT trigger as
+   written, because its condition (frozen beats trained)
+   is not met. The pattern matches the round-14
+   alignment story instead: the frozen drive already
+   holds the information (the ridge reads it equally
+   well from trained and frozen), and the delta rule
+   aligns the drive into prototype space, which is
+   exactly what W7/W8 measure. The ridge probe shows
+   no learning signal; the prototype probe shows a
+   large one. Both are true at once.
+6. R4 FAILS everywhere: the ESN scalar-std ridge beats
+   the trained standardized ridge on all 4 tasks
+   (lorenz -2.7735; var-sine -0.0341; NARMA-10 -0.0009;
+   Mackey-Glass -0.0029; all CIs below 0). The ESN
+   scalar readout remains the strongest comparator, as
+   expected. R3 passes on lorenz, var-sine, NARMA-10
+   (trained ridge beats persistence) and fails on
+   Mackey-Glass.
+7. C1 passes ONLY on NARMA-10 (+0.0024, CI [0.0019,
+   0.0029]; centroid beta=10 MSE 0.0093 vs prototype
+   0.0117, a 20.5% cut, just over the protocol's 20%
+   flag). It fails on lorenz (centroid 4.2912 vs proto
+   4.2875, tied), var-sine (centroid 0.0391 vs proto
+   0.0270, worse), and Mackey-Glass (0.0022 vs 0.0020,
+   worse). The centroid is not the better continuous
+   readout in general; the NARMA-10 cut is a
+   task-specific readout effect, and it does not change
+   the wall verdict because NARMA-10 still loses to
+   persistence. C2 passes on lorenz, var-sine, NARMA-10
+   (centroid beats persistence) and fails on
+   Mackey-Glass.
+8. F1 (wire effect, off-minus-on): NULL on lorenz
+   (-0.2306, CI [-0.9934, 0.5322]) and NARMA-10
+   (-0.0003, CI [-0.0008, 0.0002]); HURTS on var-sine
+   (-0.0178, CI [-0.0337, -0.0020]) and Mackey-Glass
+   (-0.0015, CI [-0.0028, -0.0003]). The wire never
+   helps on continuous tasks, and on two tasks it
+   significantly hurts. F2 passes on all 4 tasks (the
+   wire is live: mean fb_drive_ratio 0.3161 lorenz,
+   0.3127 var-sine, 0.3424 NARMA-10, 0.3103
+   Mackey-Glass, all far above the 0.05 gate), so the
+   F1 result is a live wire costing accuracy, not a
+   dead wire doing nothing.
+9. B1 passes ONLY on NARMA-10 (+0.0013, CI [0.0011,
+   0.0016]; bump beats token); it fails on lorenz
+   (-0.4487, CI covers 0), var-sine (-0.0005, covers 0),
+   and Mackey-Glass (+0.0000, covers 0). B2 passes on
+   lorenz (+7.8553) and var-sine (+0.0285), fails on
+   NARMA-10 (-0.0013) and Mackey-Glass (-0.0007): the
+   bump arm inherits the token arm's persistence losses
+   on the new tasks. The bump input is not a general
+   win.
+10. D8 diagnostics (ridge std vs raw, trained vs frozen):
+    lorenz trained std/raw 4.5533/4.7122, frozen std/raw
+    4.5719/4.7118; var-sine 0.0423/0.0439 vs 0.0424/
+    0.0435; NARMA-10 0.0079/0.0080 vs 0.0079/0.0079;
+    Mackey-Glass 0.0032/0.0034 vs 0.0033/0.0034. The
+    raw-frozen edge over raw-trained is 0.0004 at most
+    (lorenz), i.e. the round-18 frozen-ridge win does
+    not reproduce as a meaningful effect; under
+    standardization the trained ridge is nominally
+    better or tied everywhere.
+11. Wire effect on the FROZEN net (frozen-off minus
+    frozen-on proto MSE): lorenz -22.2907, var-sine
+    -0.0282, NARMA-10 -0.0134, Mackey-Glass -0.0066, all
+    negative. The wire hurts even without learning, so
+    its cost is in the wiring itself, not an interaction
+    with the delta rule.
+12. Centroid beta sensitivity (beta 5/10/20 means):
+    lorenz 8.4300/4.2912/3.5158; var-sine 0.1121/0.0391/
+    0.0247; NARMA-10 0.0124/0.0093/0.0091; Mackey-Glass
+    0.0071/0.0022/0.0018. Beta=20 beats beta=10 on every
+    task; the best-beta gap trips the >20% flag on
+    var-sine (37%) and sits at 18% on lorenz and
+    Mackey-Glass. Beta=10 was not validated as the best
+    beta, so the C1 verdicts carry a beta-choice caveat,
+    worst on var-sine.
+
+### Verdict
+
+1. WALL FALLS for the re-validation tasks (W1, W2, W7,
+   W8 all pass). The signed-error rule learns continuous
+   trajectories: Lorenz and var-sine, Convention-A, fresh
+   seeds, prototype readout, with the win due to learning
+   (delta beats frozen by 55x and 34x).
+2. This does NOT establish predictive coding. Round 20
+   failed the revised clamp (B') and the generative
+   rollout (D), and nothing in round 21 relitigates
+   that. A wall-fall here establishes only that the
+   signed-error rule learns continuous trajectories
+   (protocol section 8, item 5).
+3. The wall SURVIVES on the new tasks in the only sense
+   that matters for the thesis claim: the prototype does
+   not beat persistence on NARMA-10 or Mackey-Glass, and
+   it beats Markov-2 on NARMA-10 only. The continuous
+   tasks that need multi-step memory are still
+   persistence-dominated at one step, and the ESN scalar
+   ridge still wins everywhere. The re-validation tasks
+   (Lorenz, var-sine) are the easy end of the continuous
+   spectrum: Markov-2 nearly solves them, persistence is
+   weak on them, and the prototype only has to clear a
+   low bar.
+4. The wire is a net tax on continuous one-step
+   prediction: live (F2 passes everywhere) and never
+   helpful (F1 NULL twice, HURTS twice), hurting even
+   the frozen net. Combined with round 20, the aligned
+   wire's only positive evidence remains the lag-1
+   "causal but small" clamp effect; it buys nothing on
+   continuous tasks.
+5. Open: the wall-fall is one-step only (h = 1). No
+   rollout was tested here, and round 20's rollout
+   failed. The next decision is Reza's: whether a
+   multi-step continuous rollout (h > 1) is the next
+   round, or whether the one-step wall-fall plus the
+   round-20 negatives close the continuous chapter and
+   the hunt moves on.
+
+## 62. Round 22: the precision test (experiment C) -- DESIGN + LAUNCH
+
+Status: DESIGN + LAUNCHED Nov 27, 2026, 10:14 PT (see the
+launch entry at the end of this section). Protocol frozen
+Nov 27, 2026 (`PROTOCOL-R22-PRECISION.md`). Driver
+`rpc_round22_precision.py`, analyzer `r22/r22_analyze.py`,
+monitor `r22/monitor.py`, smoke `rpc_round22_smoke.py`.
+
+## 62.1 What C is
+
+Experiment C is the last unrun discriminator. Omission (A)
+passed (round 16); the top-down clamp with the random wire
+(B) failed (round 17); the aligned-wire clamp (B') failed
+with a "causal but small" lag-1 effect (round 20); the
+generative rollout (D) failed cleanly (round 20). What
+remains is precision: in Rao-Ballard predictive coding,
+prediction errors are weighted by precision (inverse
+variance), so the expectation effect on the error is larger
+when the sensory input is reliable than when it is noisy,
+and attention reverses prediction-induced silencing by
+up-weighting precision (Kok, Rahnev et al. 2012). The
+model has no precision parameter, so the question is
+whether it shows the expectation-by-precision interaction
+anyway, and whether the live aligned feedback wire carries
+it.
+
+## 62.2 The precision operationalization
+
+There is NO precision parameter in this model, and the
+protocol does not pretend otherwise. Precision is
+operationalized as test-time input reliability: at the
+probe step only, the encoded probe token is corrupted
+with additive Gaussian noise, x = normalize(encode(tok)
++ c*z), z ~ N(0, I), fed through `step_vec`. High
+precision is c = 0; low precision is c = c_low, picked
+per task in validation by the decode rule (smallest c
+with mean decode(p1) < 0.75 on calibration trials: CTL
+for planted, EXP for sine). Training is always clean,
+so the learned prediction is identical across precision
+conditions; only the sensory evidence at the probe
+differs. Two alternatives were considered and rejected:
+an error gain during training (scaling eta_d) changes
+what is learned, not the test-time error response, and
+confounds learning rate with precision; bump width
+(smooth_sigma) as precision changes the calibration
+basis and interacts with the delta rule in its own right
+(round 15). The NLMS denominator ||y2||^2 + 1 is
+explicitly NOT precision: it is input-norm
+normalization of the learning rate, acting during
+training only.
+
+The core measurement is the expectation-by-precision
+interaction on the stimulus-specific error response
+e = p1 - d1: gap(c) = rel_e(VIO, c) - rel_e(EXP, c),
+interaction = gap(0) - gap(c_low), with rel_e = ||e||
+divided by the net's own mean ||p1|| on clean
+calibration trials. Specificity is spec(c) = cos(e,
+proto_presented) - cos(e, proto_predicted) on VIO
+trials. Probe trials are matched within a seed (same
+filler prefix across EXP/VIO/UNEXP/CTL) and the noise
+vector is identical across wire modes for the same
+trial. 20 prefixes per (task, seed). Nets per (task,
+seed): aligned (gain 1.0), random (gain 1.0), off
+(gain 0.0), frozen-aligned (gain 1.0, plasticity off);
+8 config lines per (task, seed). Tasks: planted lag-1,
+planted lag-2, sine. Round-15 winner configs, 5 epochs.
+Val seeds 347-351; test seeds 352-371.
+
+## 62.3 Design probe (seed 347, 20 prefixes)
+
+Aligned wire, gain 1.0. Planted lag-1: VIO-EXP gap at
+c = 0 is +0.157 raw; interaction (c = 0 minus c = 0.5)
+is +0.066 to +0.098 raw (two noise draws), rel_e about
++0.048. VIO specificity spec(0) +0.54, spec(0.5) +0.20,
+interaction +0.34. decode(e) on VIO at c = 0 is 1.00.
+decode(p1) on CTL: 1.00 at c = 0, 0.85 at 0.25, 0.50
+at 0.50. p1 decode EXP vs UNEXP 1.00 vs 1.00; ||p1||
+1.64 vs 1.64 (no p1 suppression). Wire-cut interaction
++0.021 to +0.034; shuffle +0.002 to +0.023. Frozen:
+gap0 -0.007, interaction about 0.00. Random wire:
+interaction +0.072 raw, rel_e +0.030 (aligned +0.096 /
++0.056 in the same run); the random wire inflates
+||p1|| (p1scale 2.37 vs 1.72 aligned).
+
+Sine: gap0 +0.322 raw; interaction (c = 0 minus
+c = 0.5) +0.238 to +0.277 raw, rel_e about 0.22.
+spec(0) +0.64, spec(0.5) +0.26, interaction +0.38.
+decode(e) on VIO at c = 0 is 1.00. decode(p1) on EXP:
+1.00 at c = 0, 0.60 at 0.25, 0.20 at 0.50. Wire-cut
+interaction +0.114; shuffle +0.102. Frozen: gap0
++0.017, interaction -0.010. Random wire: interaction
++0.317 raw (LARGER than aligned +0.285 in raw units)
+but rel_e +0.164 (smaller than aligned +0.282)
+because p1scale is 1.94 vs 1.01.
+
+Headline of the probe: the interaction EXISTS wire-on
+on both tasks, but it PERSISTS wire-cut at 30-45% of
+the wire-on size, and the random wire carries 75% of
+the aligned wire's interaction on planted. The wire
+AMPLIFIES the interaction roughly 2-3x but does not
+CREATE it. Kimi's strict bar (cut removes the effect)
+is predicted to FAIL; the amplification (W1/W2) is the
+testable wire claim. The interaction is mostly a
+bottom-up sensory-noise effect.
+
+A design-time bug: the probe used Python hash() on
+trial-type strings for noise seeds; string hashing is
+randomized per process, so noisy-condition numbers
+varied between identical runs (planted gap at c = 0.5
+was +0.091 in one run, +0.059 in another). The driver
+uses integer-arithmetic seeds only (section 9.3 of the
+protocol) and the smoke confirms determinism (S5).
+
+## 62.4 Bars (frozen)
+
+P-family (per task; sine primary, planted1
+generalization, planted2 replication): P1 interaction
+(aligned-on) >= floor_P1, lower CI > 0; P2 specificity
+interaction >= floor_P2, lower CI > 0; P3 gap0 trained
+minus frozen >= floor_P3, lower CI > 0; P4 guard:
+spec(0) mean >= 0.25 with lower CI > 0.15 AND decode(e)
+on VIO at c = 0 mean >= 0.50 with lower CI > 0.30.
+Floors are set by the interaction validation phase as
+50% of the val-measured value, minima 0.02 rel_e (P1,
+P3) and 0.05 cosine (P2). W-family (per task): W1
+interaction on minus cut >= floor_W1; W2 on minus
+shuffle >= floor_W2; W3 aligned minus random >=
+floor_W3; W4 on minus off >= floor_W4; W1s diagnostic
+(strict Kimi: |interaction_cut| < floor_W1 and CI
+covers 0); W5 gate (mean fb_drive_ratio > 0.05 AND
+mean p1_cos < 0.90; if it fails the W-family is void
+for that task); W6 guard (normal_acc aligned-on >=
+0.80 x wire-off). S-family (planted only, wire-off,
+equivalence): S1 |decP1 EXP-UNEXP| < 0.03 with CI
+covering 0; S2 |p1n EXP-UNEXP| < 0.05 with CI covering
+0; S3 measurement only wire-on. 34 pass/fail bars;
+the verdict uses the preregistered subset (sine P1-P4,
+planted1 P1, sine W1/W2).
+
+Verdict: C STRONG PASS iff sine P1-P4 pass AND
+planted1 P1 passes AND W1+W2 pass on sine. C PASS iff
+sine P1-P4 pass AND planted1 P1 passes but W1/W2 fail
+(interaction exists, wire does not carry it: a
+bottom-up sensory-noise effect, not top-down
+precision). C PARTIAL iff sine P1+P2 pass but planted1
+P1 fails. C FAIL iff sine P1 or P2 fails, or sine P4
+fails. Thesis-level: no outcome of round 22
+establishes predictive coding. Round 20 failed B' and
+D; a C pass establishes only that the model produces
+precision-like behaviour from input noise plus error
+selection.
+
+## 62.5 VM smoke test (rpc_round22_smoke.py, seed 347)
+
+All checks pass (run Nov 27, 2026, about 10 min on the
+VM). Noise val: decP1 falls with c (planted1 CTL 1.00
+at 0.10 -> 0.40 at 0.50; sine EXP 1.00 at 0.10 -> 0.20
+at 0.25). c_low picked by the protocol rule: planted1
+0.35, planted2 0.35, sine 0.25. Wire live: fbdr 0.251
+planted1 / 0.302 sine, p1_cos 0.811 / 0.819 (round-20
+values 0.31-0.38 / 0.804-0.810). Interaction on sine
+0.362 rel_e, frozen -0.009 (null). Deterministic noise
+confirmed (probe_pass twice on the same net: identical
+aggregates). CLI resumable (noise val run twice: 5 lines
+both times, 5 unique keys). Lag-2 machinery: 8 config
+lines, key fields complete. Analyzer writes
+r22_analysis.md with a bar tally (n = 1, so bars fail
+on the n != 20 check, as designed; P4, W5, S1 pass on
+the single seed).
+
+Smoke floors (1 seed, 5 prefixes; the 5-seed val will
+replace them): sine P1 0.181, P2 0.178, P3 0.235, W1
+0.143, W2 0.154, W3 0.124, W4 0.020 (minimum); planted1
+P1 0.031, P2 0.190, P3 0.042, W1-W4 0.020 (minimum);
+planted2 P1 0.020 (minimum; lag-2 interaction -0.015
+on the smoke seed), P2 0.149, W2 0.025.
+
+Two findings from the smoke, recorded here because
+they shape the verdict reading:
+1. The shuffle is NOT magnitude-matched for the
+   aligned wire: fb_drive_ratio on vs shuffle is 0.251
+   vs 0.203 on planted1 (19% drop) and 0.302 vs 0.159
+   on sine (47% drop). The aligned wire is a structured
+   map (-W_prox.T); permuting d1 moves it out of the
+   subspace where the map has large gain. A W2 pass
+   therefore confounds feedback direction with feedback
+   magnitude; the cut (W1) is the primary wire control.
+   A rescaled shuffle would need an rpc_v2.py change
+   and would break comparability with rounds 17/20; it
+   is a follow-up, not part of this round.
+2. Lag-2 is marginal at smoke scale: the magnitude
+   interaction is -0.015 while the specificity
+   interaction is +0.297, and the S2 p1n difference is
+   -0.058, outside the 0.05 bound (||p1|| slightly
+   SMALLER on expected trials, the direction the
+   mapping report says the model should not show). The
+   20-seed test decides whether either is real.
+
+## 62.6 Sharpest risks (from protocol section 10)
+
+1. The precision definition is a stipulation: the round
+   tests sensory reliability, not precision weighting. A
+   pass means the interaction exists WITHOUT precision
+   weighting, which is the informative direction, but a
+   critic can fairly say the round does not test
+   precision at all.
+2. The interaction is mostly bottom-up by construction
+   (persists cut at 30-45%; random wire carries 75% on
+   planted). If W1/W2 fail, the headline is "the
+   interaction does not need the wire" -- a real result
+   that does not advance the thesis claim.
+3. The planted interaction is small (rel_e about 0.048
+   vs 0.22 sine); the planted P1 floor (about 0.024-0.031)
+   is close to measurement noise across seeds.
+4. The floors are relative (50% of val); a weak val
+   interaction produces a weak floor. The absolute minima
+   are the only guard against a trivial bar.
+5. rel_e normalization confounds wire comparisons: the
+   random wire inflates ||p1||, so W3 is partly a test
+   of the p1scale difference. The analyzer reports raw
+   ||e|| interactions alongside rel_e.
+6. The wire's effect on ||e|| is measurement-dependent:
+   round 20 B5 found err_mag_last HIGHER with the wire
+   on during training, while the design probe finds
+   probe-step ||e|| LOWER with the wire on at test.
+7. Sine has no UNEXP/CTL trials, so the S-family cannot
+   run on sine and P3 (frozen) is the only sine control
+   for "no learning".
+
+## 62.7 Launch (not run)
+
+Copy the driver, analyzer, monitor, and protocol to
+Beast; Beast smoke (one noise val + one interaction val
++ one test invocation); monitor val launch; create the
+r22-monitor cron (every 30 min, same pattern as
+r21-monitor). Monitor phases: noise val (75 lines) ->
+c_low -> interaction val (120 lines) -> floors ->
+winner.json -> test (480 lines) -> concat + analysis.
+Test phase is 240 nets, about 60-90 min on a loaded
+Beast; total round about 3 h; give it a full day. Do NOT
+edit simulation-results.md from this subagent; merge
+this draft as section 62 when the round runs.
+
+## 62.8 Launch (Nov 27, 2026, 10:14 PT)
+
+Main-agent verification before launch: the VM smoke was
+re-run independently (585 s, exit 0, "SMOKE PASSED: all
+checks pass") and every number reproduced the design
+agent's report exactly (fbdr 0.251 planted1 / 0.302 sine,
+p1_cos 0.811 / 0.819; sine interaction 0.3622 rel_e,
+frozen -0.0088; shuffle ratios 0.81 planted1 / 0.53 sine;
+deterministic noise confirmed; CLI resumable 5 lines,
+5 unique keys). Protocol sections 1-10 read in full; the
+verdict rule, the 13-point self-critique, and the shuffle
+caveat (W1 primary, W2 secondary) stand. Files copied to
+Beast in /tmp/rpc-r22.tar.gz (32,285 bytes):
+PROTOCOL-R22-PRECISION.md, rpc_round22_precision.py,
+rpc_round22_smoke.py, r22/r22_analyze.py, r22/monitor.py,
+r22/section_draft.md. Beast smoke PASSED (noise val 5
+lines, interaction val 8 lines, test 8 lines, exit 0,
+BEAST_SMOKE_OK; smoke files removed). One monitor run
+launched 3 detached noise-val workers (PIDs 559227-
+559229, one per task, seeds 347-351); noise_val_launched
+marker written; 0/75 lines at launch. Monitor cron
+r22-monitor created (every 30 min, first run 10:44:54
+PT). Beast load at launch 10.13 on 12 cores (down from
+24.20 at the round-21 launch); the protocol says the
+round takes about 3 h, give it a full day. Verdict goes
+in section 63. (Section 62.7 above is the design-time
+launch checklist, now superseded by this entry.)
+
+### 62.9 Noise validation (Nov 27, 2026, 10:44 PT)
+
+75/75 noise val lines (25 per task), 25 unique keys per
+task, no Traceback. Mean cal_decP1 by c: planted1 1.00 /
+0.95 / 0.71 / 0.54 / 0.32 at c 0.10 / 0.15 / 0.25 / 0.35 /
+0.50; planted2 1.00 / 0.99 / 0.79 / 0.61 / 0.39; sine
+0.88 / 0.79 / 0.55 / 0.45 / 0.28. c_low picked by the
+protocol rule (smallest c with mean decode < 0.75):
+planted1 0.25, planted2 0.35, sine 0.25. No
+over-corrupted flag (lowest picked decode 0.55 sine).
+Planted1 c_low is 0.25, not the 1-seed smoke's 0.35:
+the 5-seed val, not the smoke, sets the value. Interaction
+val launched (3 workers, interaction_val_launched marker,
+0/120 lines at launch).
+
+Scope note (Nov 27, alignment synthesis): the Nov 26
+23:03 no-stop order was read too broadly. The narrowed
+scope covers parallel work on already-designed,
+preregistered rounds only, never a new design or an
+irreversible act. Round 22 is now designed, frozen, and
+launched, so it continues to completion under that
+narrowed scope; no new round design starts until Reza
+lands and confirms the scope.
+
+### 62.10 Interaction validation (Nov 27, 2026, 11:14 PT)
+
+120/120 interaction val lines (40 per task), 40 unique
+keys per task, no Traceback. Floors (winner.json):
+planted1 P1 0.027 / P2 0.121 / P3 0.043 / W1-W4 0.020
+(minima); planted2 P1 0.020 (minimum) / P2 0.146 / P3
+0.020 / W1-W4 0.020; sine P1 0.079 / P2 0.136 / P3 0.108
+/ W1 0.040 / W2 0.048 / W3 0.038 / W4 0.020. Val
+interaction (aligned-on, rel_e, 5 seeds, recomputed
+independently from the raw JSONL): sine 0.1583, t(4) CI
+[0.0720, 0.2446]; planted1 0.0539, CI [0.0195, 0.0884];
+planted2 0.0063, CI [-0.0372, 0.0497]. Specificity
+interaction: sine 0.2715, planted1 0.2417, planted2
+0.2927 (planted2 keeps a large specificity interaction
+while its magnitude interaction is ~0). Frozen gap0 is
+~0 on all tasks (-0.0073 / -0.0022 / +0.0005), so the
+learning control is clean. Wire-cut interaction:
+planted1 0.0322 (60% of wire-on persists), sine 0.0792
+(50% persists), planted2 -0.0017. The wire carries 40%
+of the interaction on planted1 and 50% on sine. The
+monitor's "40% persists" phrasing for planted1 was the
+wire-carried share, not the cut persistence; the cut
+persistence is 60%, above the 30-45% range the design
+probe showed on one seed. Planted2 P1 is expected to
+fail (val interaction ~0 with CI covering 0); the
+monitor logged the t(4) warning as designed. Test phase
+launched 11:14 PT (6 workers, seeds 352-371, 2 shards
+per task, 0/480 lines at launch).
+
+## 63. Round 22: the precision test (experiment C) -- VERDICT (Nov 27, 2026, 12:15 PT)
+
+Test phase complete: 480/480 lines (8 configs x 3 tasks x 20
+seeds 352-371), 6 workers, launched 11:14 PT, analysis
+written 12:15 PT, test phase about 61 min. The combined
+352-371 files are the exact concatenation of the a/b shards
+(identical rows, 0 keys with differing values); the 960-line
+total across all test files is that duplication, not 960
+nets. No Traceback in any .log. Analysis r22/r22_analysis.md,
+analyzer r22/r22_analyze.py, monitor markers all present
+(noise_val_launched, interaction_val_launched,
+test_launched, analysis).
+
+Independent verification (this run, script
+r22/recompute_independent.py, written from the protocol
+definitions without importing the analyzer): all 480 test
+records reloaded from the raw JSONL; every headline mean,
+median, CI, and paired difference recomputed with exact
+Student-t (t(19) = 2.0930). All headline means match the
+analysis to 3 decimals: 0 mismatches across 35 checked
+values, including medians and CI bounds. The val means in
+winner.json were recomputed from the raw interaction-val
+JSONL and all seven floors per task re-derived as max(0.02,
+0.5 x val): 0 floor mismatches. Bar tally recomputed: 24 of
+34 pass, matching the analysis. c_low: sine 0.25, planted1
+0.25, planted2 0.35 (from 62.9).
+
+### 63.1 Sine (primary): 8 of 10 bars pass
+
+P1 interaction (aligned-on) 0.1643, 95% CI [0.1416, 0.1871],
+floor 0.0791, PASS. P2 spec interaction 0.2423, CI [0.2239,
+0.2608], floor 0.1358, PASS. P3 gap0 trained minus frozen
+0.2485, CI [0.2174, 0.2797], floor 0.1082, PASS. P4 spec0
+0.5777, CI [0.5434, 0.6121]; decode(e) on VIO 0.8950, CI
+[0.8403, 0.9497], PASS. W1 on minus cut 0.0805, CI [0.0624,
+0.0986], floor 0.0395, PASS. W2 on minus shuffle 0.0955, CI
+[0.0753, 0.1157], floor 0.0480, PASS. W3 aligned minus
+random 0.0874, CI [0.0643, 0.1106], floor 0.0378, PASS. W4
+on minus off -0.0605, CI [-0.0772, -0.0437], FAIL. W5 gate
+fbdr 0.2792, p1_cos 0.7912, PASS. W6 normal_acc on minus
+0.8x off -0.0687, CI [-0.0992, -0.0382], ratio on/off
+0.720, FAIL. W1s diagnostic: interaction under cut 0.0838,
+CI [0.0743, 0.0934], 51.0% of wire-on, PERSISTS. DIAG
+interaction_raw aligned-on 0.1754 vs random-on 0.1563: in
+raw units the random wire carries nearly as much as the
+aligned wire, consistent with the rel_e / p1scale confound
+(section 62.6 item 5).
+
+### 63.2 Planted lag-1 (generalization): 10 of 12 bars pass
+
+P1 0.0425, CI [0.0329, 0.0520], floor 0.0270, PASS. P2
+0.2355, CI [0.2239, 0.2470], floor 0.1208, PASS. P3 0.0918,
+CI [0.0779, 0.1058], floor 0.0431, PASS. P4 spec0 0.5487,
+CI [0.5242, 0.5733]; decE_VIO 1.0000, PASS. W1 0.0246, CI
+[0.0170, 0.0321], floor 0.0200, PASS. W2 0.0316, CI
+[0.0236, 0.0396], floor 0.0200, PASS. W3 0.0198, CI
+[0.0129, 0.0267], floor 0.0200, FAIL by 0.0002 (real but
+below the floor). W4 0.0079, CI [0.0012, 0.0146], floor
+0.0200, FAIL (real but small). W5 fbdr 0.2520, p1_cos
+0.8410, PASS. W6 diff 0.0603, ratio 1.072, PASS. S1 decP1
+EXP-UNEXP wire-off 0.0000, PASS. S2 p1n diff 0.0027, CI
+[-0.0091, 0.0145], PASS. S3 (wire-on, measurement only)
+p1n diff -0.0448. W1s diagnostic: interaction under cut
+0.0179, 42.2% of wire-on, PERSISTS. DIAG interaction_raw
+aligned-on 0.0723 vs random-on 0.0522.
+
+### 63.3 Planted lag-2 (replication): 6 of 12 bars pass
+
+P1 -0.0052, CI [-0.0159, 0.0054], floor 0.0200, FAIL. P2
+0.3105, CI [0.2904, 0.3306], floor 0.1463, PASS. P3
+0.0038, CI [-0.0071, 0.0147], floor 0.0200, FAIL. P4
+spec0 0.5723, CI [0.5449, 0.5998]; decE_VIO 1.0000, PASS.
+W1 -0.0053, W2 -0.0022, W3 -0.0045, W4 -0.0046, all FAIL.
+W5 fbdr 0.2537, p1_cos 0.8448, PASS. W6 diff 0.0521,
+ratio 1.032, PASS. S1 0.0000, S2 0.0032, CI [-0.0147,
+0.0212], PASS. S3 (wire-on, measurement only) p1n diff
+-0.0313. W1s diagnostic: interaction under cut 0.0001,
+REMOVED by cut (there is nothing to remove: the
+interaction itself is ~0). The magnitude interaction does
+not survive 2-step memory; only the specificity
+interaction does.
+
+### 63.4 Verdict: C STRONG PASS (protocol section 8, rule 1)
+
+Sine P1-P4 pass, planted1 P1 passes, sine W1 and W2 pass,
+and the W5 gate passes on sine, so no demotion applies.
+24 of 34 bars pass. The verdict rule is met exactly as
+frozen.
+
+### 63.5 What the verdict does and does not mean
+
+1. The interaction is real, stimulus-specific, and learned:
+   it is present on sine (0.1643) and planted lag-1
+   (0.0425), the specificity interaction tracks it (0.2423
+   / 0.2355), and the frozen control shows ~0 gap (P3
+   0.2485 sine / 0.0918 planted1).
+2. The wire carries a real increment over cut (W1 sine
+   0.0805, planted1 0.0246), but the strict Kimi bar
+   FAILS: the interaction persists under cut at 51.0% of
+   wire-on on sine (0.0838 vs 0.1643) and 42.2% on
+   planted1 (0.0179 vs 0.0425), inside / just above the
+   30-45% the design probe predicted. Protocol section 8,
+   "what would change the verdict" item 1 (W1s passes)
+   did NOT happen, so the top-down precision reading is
+   NOT strengthened. The wire amplifies the interaction
+   roughly 2x; it does not create it.
+3. The wire-on net does not exceed the wire-off net on
+   sine: interaction wire-off 0.2248 vs wire-on 0.1643
+   (W4 -0.0605, CI excludes 0). Ordering on sine is off >
+   on > cut (0.0838) > shuffle (0.0688). W1 is true only
+   against the cut control, not against no wire. On
+   planted1 the ordering is on (0.0425) > off (0.0346) >
+   cut (0.0179), and W4 is real but small (0.0079, below
+   the 0.0200 floor).
+4. The wire costs ordinary accuracy on sine: normal_acc
+   ratio on/off 0.720 (W6 FAIL). On planted tasks the
+   wire costs nothing (ratios 1.072 / 1.032, W6 PASS).
+   The sine W6 fail is a real side effect of the aligned
+   wire on the continuous task, not a measurement
+   artifact: the same wire that carries the interaction
+   degrades normal performance by 28%.
+5. W2 passes on sine (0.0955) but the known confound
+   stands (section 62.5 finding 1): the shuffle is not
+   magnitude-matched, so W2 confounds direction with
+   magnitude. The cut (W1) is the primary wire control
+   and it passes.
+6. S1 and S2 pass on both planted tasks wire-off (decP1
+   diff 0.0000; p1n diff 0.0027 / 0.0032, CIs cover 0):
+   p1 is NOT suppressed by expectation. The mapping
+   report's falsifiable divergence is NOT falsified in
+   the model's favour. S3 (wire-on, measurement only)
+   shows a p1n diff of -0.0448 (planted1) and -0.0313
+   (planted2): with the wire on, ||p1|| is slightly
+   SMALLER on expected trials, the direction the mapping
+   report says the model should not show, but this is a
+   wire-on measurement, not a wire-off result, and it is
+   not a bar.
+7. Lag-2: the magnitude interaction is ~0 (-0.0052)
+   while specificity stays large (0.3105). The
+   interaction does not survive 2-step memory. Per
+   protocol section 8 rule 5 this does not change the
+   verdict, but it bounds the claim to 1-step expectation.
+
+Thesis-level (protocol section 8 rule 6): no outcome of
+round 22 establishes predictive coding. Round 20 failed
+B' and D. A C STRONG PASS establishes only that the model
+produces precision-like behaviour from input noise plus
+error selection, with the live wire amplifying (not
+creating) the effect. The discriminators now stand:
+omission (A) passes, top-down clamp (B) fails, aligned
+clamp (B') fails, generative rollout (D) fails,
+precision (C) passes with the wire as amplifier. Next
+queued: the multi-step (h > 1) continuous rollout, per
+the Nov 27 00:00 redirection; no new design starts until
+Reza lands and confirms scope. The r22-monitor cron is
+removed; the analysis is delivered.
+
+### 63.6 Main-agent second check (Nov 27, 2026, 12:18 PT)
+
+Independent recomputation by the main agent from the
+raw merged test JSONL (own script, protocol definitions
+only, no analyzer import): every checked value matches
+the analysis to 4 decimals -- sine P1 0.1643 CI
+[0.1416, 0.1871], P2 0.2423, P3 0.2485, W1 0.0805, W2
+0.0955, W3 0.0874, W4 -0.0605, W6 -0.0687 ratio 0.720,
+cut 0.0838 (51.0%); planted1 P1 0.0425, P2 0.2355, P3
+0.0918, W1 0.0246, W2 0.0316, W3 0.0198, W4 0.0079, W6
+0.0603 ratio 1.072, cut 0.0179 (42.2%); planted2 P1
+-0.0052, P2 0.3105, P3 0.0038, W1 -0.0053, W2 -0.0022,
+W3 -0.0045, W4 -0.0046, W6 0.0521 ratio 1.032, cut
+0.0001. Shard-vs-merged check: 0 mismatched rows on all
+three tasks (a+b shards equal the merged files
+exactly). 480 unique (task, config, seed) records: 60
+(task, seed) pairs x 8 configs, from 240 nets (4 per
+pair). Correction to the worker handoff and README
+wording: "480 unique test nets" is wrong; it is 480
+unique records from 240 nets. Section 63 above states
+it correctly. Bar tally recount: sine 8/10, planted1
+10/12, planted2 6/12, total 24/34. Verdict rule
+confirmed: sine P1-P4 pass, planted1 P1 passes, sine
+W1+W2 pass, W5 gate passes, so C STRONG PASS stands.
+The r22-monitor cron is confirmed removed (cron.list,
+Nov 27 12:18 PT). README Status updated. Next queued:
+the multi-step (h > 1) continuous rollout; no new design
+starts until Reza lands and confirms scope.

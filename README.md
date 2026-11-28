@@ -279,4 +279,328 @@ completion. Limit stands: no error unit and no top-down
 feedback at test time, so this is necessary but not sufficient
 for the Rao-Ballard claim; next discriminator is the top-down
 clamp (experiment B). The r16-monitor cron is removed; the
-analysis is delivered.
+analysis is delivered. Round 17 (the top-down clamp,
+PROTOCOL-R17-CLAMP.md) LAUNCHED Nov 26, 2026 about 23:05 PT
+on Reza's order ("do all together, do not stop for my
+approval, keep going until the question is completely clear
+and killed"): A26 adds the wire (fb = fb_gain * (W_fb @ d1)
+into module 1's reservoir) and the round clamps it (cut /
+shuffle / wire-off / frozen). Beast smoke reproduced the VM
+numbers exactly. Four validation workers running (planted1,
+seeds 241-245, gains 0.0/0.1/0.3/1.0); the r17-monitor cron
+picks the winner with the 0.80x guard and launches the test
+phase. VAL WINNER Nov 26, 2026, 23:44 PT (verified from the
+Beast val files): fb_gain 0.1, val_acc 0.226 vs gain-0.0
+0.227, guard PASS; strong feedback (1.0) drops to 0.182.
+Test phase launched (4 workers, planted1/planted2, seeds
+241-260, fb_gain 0.1); analysis at 200 lines. Round 18 (continuous-task wall) COMPLETE Nov 27, 2026, 00:15 PT
+(record section 52; analysis r18/r18_analysis.md,
+verified by independent recomputation from the raw
+JSONL: all 16 condition means match to 3 decimals, 0
+duplicate keys, 360 lines). Correct scoring: Lorenz C1
+accuracy 0.333 (was 0.164 mis-scored), var-sine C1 0.295
+(was 0.150). Bars 5/8 pass: D1, D2, D5, D6, D7 pass; D3,
+D4, D8 fail. H0 fails (D3: var-sine C1 MSE 0.064 against
+persistence 0.056) and D4 fails (Lorenz C1 MSE 22.390
+against persistence 12.605), so the wall survives
+correct scoring. Readout and input both help (ridge
+halves Lorenz MSE, bump cuts it by two thirds,
+combined C4 3.795 beats the ESN's 4.308), but D8 fails:
+the frozen ridge (C2f 10.818) beats the trained ridge
+(C2 11.403), so delta adds no continuous information
+beyond what the frozen reservoir already holds. The
+r18-monitor cron is removed; the analysis is delivered.
+Per the Nov 27 00:00 PT redirection, the hierarchy
+build and the data mapping come next; the generative
+test (experiment D) follows the round-17/18 verdicts.
+Round 17 (top-down clamp, experiment B) COMPLETE Nov 27,
+2026, 00:17 PT (record section 53; analysis
+r17/r17_analysis.md, verified by independent
+recomputation from the raw JSONL: all condition means
+match to 3 decimals, paired diffs to 4 decimals, 0
+duplicate keys, 200 lines). Experiment B FAILS on lag-1:
+C1 FAIL (cut degrades omit_m2 by +0.005, needs >= 0.10),
+C2 FAIL (shuffle -0.001), C3 FAIL (p1_cos 0.998, needs
+< 0.90), C4 FAIL (wire-off +0.004, CI includes 0), C5
+guard PASS (0.228 vs 0.229). Lag-2: only C1 passes
+(+0.004, a 0.4-point effect). 2/9 bars pass. The wire
+is present, small, and inert: it moves module 1's code
+by 0.2 percent and the final error magnitude by 0.002.
+The prediction lives in module 2's state and is never
+fed back into module 1. Strong fixed feedback is worse
+(gain 1.0 drops validation to 0.182), so a learned
+feedback wire is the untested option, now a hierarchy
+question. Two of the three research discriminators are
+decided: omission passes, clamp fails. The r17-monitor
+cron is removed; the analysis is delivered. Round 19
+(hierarchy, experiment E) DESIGNED Nov 27, 2026, 00:19 PT
+(record section 54; protocol PROTOCOL-R19-HIERARCHY.md
+frozen; model rpc_hier.py, assumption A28; rpc_v2.py
+untouched). Three levels, one delta-trained distal wire
+and one fixed random feedback wire per level, leak rates
+1.0 / 0.3 / 0.1. New two-timescale task: 4 blocks of 12
+steps, context token per block, two motifs per context
+with shared starters. Seeds 282..301, val picks levels
+{2,3} and feedback gains on the hier task only. Bars
+H1-H9: hierarchy beats flat on late m1 by 0.20 or more
+and reaches 0.45, plus the old tasks (planted m1 0.80)
+and mechanism checks (cut, frozen). Smoke passes on the
+VM (nested init exact, flat reproduction within 0.05,
+ladder holds: lag-11 context decode L1 0.70, L2 0.97,
+L3 0.93). Honest dent in the premise, recorded in
+section 54.10: level 1 already holds context at 0.70,
+so the flat model may beat the 0.25 late-m1 guess and
+compress the gap H2 demands. The main agent re-runs the
+VM smoke independently, then launches on Beast (6 val
+workers, about 5 h wall); r19-monitor drives val ->
+winner -> test -> analysis at 480 lines (420 if the
+winner is 2 levels). Monitor patch (main agent, Nov 27,
+before launch): launch_val and launch_test now launch
+detached (start_new_session, no wait) and write their
+marker at launch time, because the test phase is about
+5 h wall and a blocking launch would outlive the cron run
+and stall the round. LAUNCHED Nov 27, 2026, 00:25 PT:
+Beast smoke passed with VM-identical numbers; 6 val
+workers running (one per config, seeds 282-286, hier
+task); val_launched marker written; r19-monitor cron
+created (every 30 min). VAL WINNER Nov 27, 2026, 00:44 PT
+(record section 54.12): L2g010, 2 levels, fb_gain1 0.1,
+mean val acc 0.268. The 3-level config L3g010_g010 ties
+at 0.268 and loses on the tie-break, so the third level
+adds nothing on validation and H4 is not judged. Test
+phase running: 6 detached workers, target 420 lines,
+about 5 h wall. Round 17/18 critiques LAUNCHED
+Nov 27, 2026, 00:34 PT (record section 55; brief
+CRITIQUE-BRIEF-R1718.md, 10 checks, numbers verified
+against sections 52/53): Kimi PID 534794 and AGY Gemini
+PID 534795 on Beast, pack synced to the review dir,
+Opus not attempted (quota-blocked until about Dec 1;
+round-14 retry scheduled Dec 2). Collection job
+r1718-critique-check watches every 30 min.
+
+Round 19 VERDICT Nov 27, 2026, 01:15 PT (record section
+56; analysis r19/r19_analysis.md, 420/420 test lines, 20
+seeds, no Traceback, headline means independently
+recomputed to 3 decimals). 1 of 9 bars pass (H9 only).
+The hierarchy does not win: hier acc cand_on 0.248 vs
+flat 0.255; planted1 m1 0.561 vs flat 0.682; sine acc
+0.679 vs flat 0.874. Feedback is inert at test time
+(H8 +0.002, shuffle gap +0.001). The flat model beats
+the hierarchy on every task and beats Markov-1 on the
+hier task only by losing less (0.255 vs 0.301). The
+r19-monitor cron is removed; its job is done.
+
+Rounds 17/18 critiques LANDED Nov 27, 2026, about 01:20 PT (record section
+57; r1718-kimi-critique.md and r1718-agy-critique.md, md5-verified from
+Beast). Both reviewers agree experiment B fails for the tested wire, but the
+general "no causal role" claim is too strong: the fixed random additive wire
+at gain 0.1 was the wrong geometry, and AGY's aligned subtractive control
+(-W_prox.T, gain 1.0, seed 241) reaches omit_m2 1.000 and clears C3. The
+wire is live in the code (verified); the lag-2 C1 pass is an analyzer
+artifact (the 0.10 floor was dropped for lag-2), so the honest tally is 1
+of 9. The continuous wall splits: AGY's Convention-A revalidation of
+round 15's own grid dissolves D3/D4, reproduced exactly here (Lorenz
+discrete-bin A14 config acc 0.4285, MSE 5.07 vs persistence 13.05, 5
+seeds), and D8's frozen ridge win is a regularization artifact (seed 262:
+drive norms 1.025 trained vs 5.651 frozen; standardized ridge ties at
+13.976). D2 passes only under the z 1.96 rule (CI lower bound +0.0003)
+and fails under exact t. Next experiment: reviewers disagree (Kimi:
+precision-weighted causal feedback; AGY: fix the wire, then generative
+rollout), but both agree the wire must be fixed first with a state-effect
+gate. The r1718-critique-check cron is removed; its job is done.
+
+Round 20 LAUNCHED Nov 27, 2026, 02:12 PT (record section 58;
+protocol PROTOCOL-R20-ALIGNED.md): aligned subtractive feedback
+clamp (revised experiment B) plus multi-step omission rollout
+(experiment D), seeds 302-321. A29 in rpc_v2.py: fb_wire
+aligned/learned/random, blank token, corrected drive ratio.
+The aligned wire reproduces AGY's seed-241 control exactly
+(normal_acc 0.2330, omit_m2 1.000, p1_cos 0.8565); the learned
+wire uses a local composite delta rule, NOT AGY's literal
+formula, which was measured to collapse (normal_acc 0.061 at
+gain 1.0). Smoke 8/8 PASS on the VM and on Beast with identical
+numbers (gate p1_cos 0.8033, on-cut gap +0.0167). 9 validation
+workers running (3 wire types x 3 gains, planted1-occ, seeds
+302-306); r20-monitor cron created (every 30 min). Honest
+risks: the B1 floor (0.05) sits above both measured single-seed
+gaps, so the round may report "causal but small"; the sine
+rollout decays to chance late (0.030 vs the 0.30 bar), so D4
+may fail. Beast is loaded by the connectome Allen binwidth
+runs, so wall time may stretch past the about 1 hour estimate.
+Continuous re-validation is split into round 21. VAL WINNERS
+Nov 27, 2026, 02:44 PT (record section 58.2): aligned gain 1.0
+(gap +0.017, p1_cos 0.805), learned gain 1.0 (gap -0.002, p1_cos
+0.751), random gain 1.0 (gap -0.088, p1_cos 0.754); all gates
+PASS. The gate does real work: gains 0.1 and 0.3 fail it for
+every wire (p1_cos 0.93 to 0.99), so only gain 1.0 counts as a
+live wire. Random at gain 1.0 actively hurts (val_acc 0.190 vs
+aligned 0.236). Round 20 VERDICT Nov 27, 2026, 04:14 PT
+(record section 59): B' FAILS and D FAILS, 9 of 28 bars pass;
+"causal but small" applies on lag-1 only (B1 +0.014, B2 +0.033);
+B5 fails both lags with the wrong sign (no explaining away);
+D is a clean negative (sine rollout on 0.147 < cut 0.184 <
+wire-off 0.223); learned wire fails everywhere; the wire costs
+23 points of one-step sine accuracy. Thesis-level predictive-
+coding causality NOT established.
+
+Round 21 LAUNCHED Nov 27, 2026, 05:26 PT (record section 60;
+protocol PROTOCOL-R21-CONTINUOUS.md): continuous
+re-validation, Convention-A Lorenz/var-sine plus NARMA-10 and
+Mackey-Glass, standardized ridge probes, aligned wire tested
+on/off as a factor (wire OFF primary, wire ON a secondary arm
+on the token input only). VM smoke re-run independently by the
+main agent: 785 s, exit 0, zero failures, every number
+reproduces the design exactly (Lorenz 0.4285 / 5.073; var-sine
+0.3230 / 0.0370, diff -0.0000 vs AGY; D8 standardized ridge
+ties 13.976). Beast smoke PASSED (lorenz val 10 lines, test
+seed 327 7 rows). 4 token-val workers running (seeds 322-326);
+r21-monitor cron created (every 30 min). Beast load 24.20 at
+launch (connectome Allen runs); give the round a full day.
+Verdict in section 61. TOKEN VAL WINNERS Nov 27, 2026, 06:44 PT
+(record section 60.2): lorenz G4 (alpha 1.0, smooth 3.0,
+eta_d 0.2, val MSE 4.6268); varsine G4 (same config, 0.0240);
+narma10 G5 (alpha 1.0, smooth 2.0, eta_d 0.02, 0.0109);
+mackeyglass G1 (alpha 1.0, smooth 2.0, eta_d 0.2, 0.0021).
+Lorenz and varsine winners differ from the preregistered
+primaries, so the test runs conditional primary arms and
+the target is 640 lines (7 rows per task-seed plus 2
+conditional rows per seed on lorenz and varsine). BUMP VAL
+WINNERS Nov 27, 2026, 07:15 PT: lorenz sigma 2.0 (4.3965
+vs 3.0 at 4.6281); varsine sigma 3.0 (0.0236 vs 2.0 at
+0.0390); narma10 sigma 3.0 (0.0103 vs 2.0 at 0.0108);
+mackeyglass sigma 2.0 (0.0022 vs 3.0 at 0.0025). Test phase
+running: 8 workers, seeds 327-346, 0 lines at launch.
+Beast load about 15.7. Verdict in section 61.
+
+Round 20 COMPLETE Nov 27, 2026, 04:14 PST (record section
+59, analysis r20/r20_analysis.md). Aligned-feedback clamp
+(revised experiment B) plus multi-step omission rollout
+(experiment D), 20 fresh seeds 302-321, 660 test lines, 0
+errors, analysis verified by independent recomputation
+(r20/verify_r20.py, all headline means match to 3
+decimals). Val winners (planted1-occ, seeds 302-306): all
+three wire types at fb_gain 1.0, all state gates PASS
+(aligned gap +0.017, p1_cos 0.805; learned -0.002, 0.751;
+random -0.088, 0.754). Bar table: 9/28 pass. B' FAILS
+(B1/B2/B5/B9 lag-1, B1/B2/B4/B5/B8/B9 lag-2). D FAILS
+(D1-D7 all fail, all signs negative: sine rollout_acc on
+0.147 < cut 0.184 < wire-off 0.223; late rollout 0.051 vs
+bar 0.30). Pre-registered "causal but small" outcome
+APPLIES on lag-1 only: B1 +0.014 CI [0.005,0.022], B2
++0.033 CI [0.022,0.044], both real (lower CI > 0) but below
+the +0.05 floor. B8 lag-1 passes (+0.071): aligned beats
+random by more than the floor, so direction matters. B6
+passes both lags (cos_p1_omit_m2 on-cut -0.391/-0.381), so
+the wire rotates module-1 state as predicted, but B5 fails
+both lags with the wrong sign (err_mag_last up +0.0138/
++0.0181 with the wire on): no explaining away. Learned
+wire fails everywhere (B9 +0.004 lag-1 null, -0.027 lag-2;
+D7 -0.035). The wire costs 23 points of one-step sine
+accuracy (0.666 vs wire-off 0.892) and nothing on planted.
+Thesis-level rule (B' AND D) not met: predictive-coding
+causality is NOT established. Next: round 21 (continuous
+re-validation), sketched in PROTOCOL-R20-ALIGNED.md; open
+question is whether to carry the aligned wire at gain 1.0
+given the sine cost and the negative rollout sign.
+
+Round 21 COMPLETE Nov 27, 2026, 09:14 PST (record section
+61, analysis r21/r21_analysis.md). Continuous
+re-validation, Convention-A Lorenz/var-sine plus NARMA-10
+and Mackey-Glass, standardized ridge probes, aligned wire
+tested on/off as a factor, 20 fresh seeds 327-346, 640 test
+lines, 0 duplicates, 0 errors, analysis verified by
+independent recomputation (r21/verify_r21.py, all headline
+means match to 3 decimals). Val winners (seeds 322-326):
+lorenz G4 (alpha 1.0, smooth 3.0, eta_d 0.2, 4.6268);
+varsine G4 (same config, 0.0240); narma10 G5 (alpha 1.0,
+smooth 2.0, eta_d 0.02, 0.0109); mackeyglass G1 (alpha 1.0,
+smooth 2.0, eta_d 0.2, 0.0021). Bump sigmas: lorenz 2.0,
+varsine 3.0, narma10 3.0, mackeyglass 2.0. Bar table: 26/54
+pass. WALL FALLS for the re-validation tasks: W1 +8.3039
+CI [7.5853,9.0225], W2 +0.0290 CI [0.0219,0.0360], W7
++232.5637 CI [188.6496,276.4778], W8 +0.9033 CI
+[0.8092,0.9974], all pass; the preregistered primaries
+pass too (W9 +7.6045, W10 +0.0187), so val selection is
+not doing the work. This does NOT establish predictive
+coding (round 20 failed B' and D); it establishes only
+that the signed-error rule learns continuous trajectories.
+The wall survives on the new tasks: prototype does not
+beat persistence on NARMA-10 (N1 -0.0026) or Mackey-Glass
+(N2 -0.0008), and beats Markov-2 on NARMA-10 only (N7
++0.0011; N8 -0.0011). R1 fails on all 4 tasks BY TIE, not
+by a frozen win, so protocol section 8 item 5 does not
+trigger; the ridge probe shows no learning signal while
+the prototype shows a large one, matching the round-14
+alignment story. R4 fails everywhere (ESN scalar-std ridge
+still wins). F1: wire NULL on lorenz/NARMA-10, HURTS on
+var-sine (-0.0178) and Mackey-Glass (-0.0015), while F2
+passes everywhere (fb_drive_ratio 0.31 to 0.34): the wire
+is live and a net tax on continuous one-step prediction.
+The r21-monitor cron is removed; its job is done. Next
+decision is Reza's: a multi-step continuous rollout
+(h > 1) as the next round, or close the continuous
+chapter on the one-step wall-fall plus the round-20
+negatives.
+
+Round 22 LAUNCHED Nov 27, 2026, 10:14 PT (record section
+62; protocol PROTOCOL-R22-PRECISION.md): the precision
+test (experiment C), the last unrun discriminator.
+Precision is test-time input reliability (noise on the
+probe token); training is always clean; the NLMS
+denominator is explicitly NOT precision. Design probe
+(seed 347): the interaction exists wire-on but persists
+wire-cut at 30-45%, so the wire amplifies it 2-3x but
+does not create it; Kimi's strict bar (cut removes it)
+is predicted to FAIL. VM smoke re-run independently by
+the main agent: 585 s, exit 0, all checks pass, numbers
+identical (sine interaction 0.3622 rel_e, frozen
+-0.0088). Beast smoke PASSED (noise val 5 lines,
+interaction val 8 lines, test 8 lines). 3 noise-val
+workers running (seeds 347-351); r22-monitor cron
+created (every 30 min). Beast load 10.13 at launch.
+NOISE VAL Nov 27, 2026, 10:44 PT: c_low planted1 0.25,
+planted2 0.35, sine 0.25 (75/75 lines, no duplicates).
+Interaction val running. INTERACTION VAL Nov 27, 2026,
+11:14 PT: floors sine P1 0.079, planted1 P1 0.027,
+planted2 P1 0.020 (minimum). Val interaction sine 0.158,
+planted1 0.054, planted2 0.006 (CI covers 0, P1 expected
+to fail). Wire-cut interaction persists 60% on planted1
+and 50% on sine. Test running: 6 workers, seeds 352-371.
+Verdict in section 63. The h>1 rollout is queued after
+round 22. Scope note (Nov 27, alignment synthesis): the
+no-stop order covers parallel work on already-designed,
+preregistered rounds only, never a new design; round 22
+continues to completion, no new design until Reza lands
+and confirms scope. Round 22 COMPLETE Nov 27, 2026, 12:15
+PT (record section 63; analysis r22/r22_analysis.md,
+verified by independent recomputation from the raw JSONL:
+all headline means match to 3 decimals, 0 mismatches, all
+seven floors per task re-derived from the val files, 0
+mismatches, 480 unique test records from 240 nets, no
+Traceback). Verdict: C STRONG PASS, 24 of 34 bars. Sine P1 0.164, P2 0.242, P3
+0.249, P4 pass; planted1 P1 0.042 pass; sine W1 0.081 and W2
+0.096 pass; W5 gate passes on sine. But the strict Kimi bar
+fails: the interaction persists wire-cut at 51% of wire-on
+on sine (0.084 vs 0.164) and 42% on planted1, so the wire
+amplifies the interaction about 2x and does not create it,
+and the top-down precision reading is NOT strengthened.
+Worse on sine: wire-off interaction (0.225) EXCEEDS wire-on
+(0.164, W4 -0.061 fail), so W1 holds only against the cut
+control, not against no wire; and the wire costs 28% of
+normal accuracy on sine (W6 ratio 0.720 fail; planted
+ratios 1.07/1.03 pass). Lag-2 replication fails: magnitude
+interaction -0.005 (P1 fail, P3 fail) while specificity
+stays 0.311 (P2 pass), so the interaction survives only
+1-step expectation. S1/S2 pass on both planted tasks
+wire-off (no p1 suppression by expectation); the mapping
+report's falsifiable divergence is NOT falsified. W2 passes
+but the shuffle magnitude confound stands; the cut is the
+primary control and it passes. Thesis-level: no outcome
+establishes predictive coding; C passes only as
+precision-like behaviour from input noise plus error
+selection, wire as amplifier. Discriminators now: omission
+passes, clamp B fails, aligned clamp B' fails, generative D
+fails, precision C passes with the wire as amplifier. Next
+queued: the multi-step (h > 1) continuous rollout; no new
+design until Reza lands and confirms scope. The r22-monitor
+cron is removed; the analysis is delivered.

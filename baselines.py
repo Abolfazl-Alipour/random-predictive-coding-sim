@@ -143,6 +143,141 @@ def bin_centre_lorenz(b, K=32, lo=-25.0, hi=25.0):
     return lo + (b + 0.5) / K * (hi - lo)
 
 
+def bin_centre_range(b, K=32, lo=0.0, hi=1.0):
+    """Bin centre for any continuous task binned over [lo, hi]."""
+    return lo + (b + 0.5) / K * (hi - lo)
+
+
+def bin_centre_narma10(b, K=32):
+    return bin_centre_range(b, K, 0.0, 1.0)
+
+
+def bin_centre_mackeyglass(b, K=32):
+    return bin_centre_range(b, K, 0.0, 1.5)
+
+
+def _narma10_seq(length, burn, lo, hi):
+    """One NARMA-10 sequence (burn-in + sampled steps), or None if
+    the trajectory leaves the stable basin or the bin range.
+
+    The recurrence has an unstable fixed point near y = 1.02
+    (mean-field roots 0.38 and 1.02): a run of large inputs can
+    push y past it, after which the quadratic term explodes
+    (measured: about 1 in 1000 sequences diverges). A divergent
+    draw is not a NARMA-10 trajectory, so the caller resamples
+    it; the retained sequences are the canonical system
+    conditioned on staying in its stable basin, which is where
+    every reported literature run lives. Draws that leave
+    [lo, hi] are also resampled, so the returned values never
+    clip at the bin edges.
+    """
+    hist = [0.0] * 10        # y(t-9) .. y(t), most recent last
+    u_hist = [0.0] * 9       # u(t-9) .. u(t-1), most recent last
+    for _ in range(burn):
+        u = float(np.random.rand()) * 0.5
+        y_new = (0.3 * hist[-1] + 0.05 * hist[-1] * sum(hist)
+                 + 1.5 * u_hist[0] * u + 0.1)
+        if (not np.isfinite(y_new) or abs(y_new) > 5.0
+                or y_new < lo or y_new > hi):
+            return None
+        hist.append(y_new)
+        hist.pop(0)
+        u_hist.append(u)
+        u_hist.pop(0)
+    xs = []
+    for _ in range(length):
+        u = float(np.random.rand()) * 0.5
+        y_new = (0.3 * hist[-1] + 0.05 * hist[-1] * sum(hist)
+                 + 1.5 * u_hist[0] * u + 0.1)
+        if (not np.isfinite(y_new) or abs(y_new) > 5.0
+                or y_new < lo or y_new > hi):
+            return None
+        hist.append(y_new)
+        hist.pop(0)
+        u_hist.append(u)
+        u_hist.pop(0)
+        xs.append(y_new)
+    return xs
+
+
+def make_narma10(n_seq, length=100, K=32, lo=0.0, hi=1.0, burn=200):
+    """NARMA-10 (Atiya and Parlos 2000): a nonlinear autoregressive
+    moving-average system of order 10. The input u(t) is iid
+    Uniform(0, 0.5); the output follows
+        y(t+1) = 0.3*y(t) + 0.05*y(t)*sum_{i=0}^{9} y(t-i)
+                 + 1.5*u(t-9)*u(t) + 0.1.
+    Predicting y(t+1) needs the last 10 outputs and the driving
+    input 9 steps back, so a 1- or 2-step bin lookup cannot solve
+    it: the task needs genuine multi-step memory. The history
+    starts at zero and 200 steps are discarded as burn-in, so
+    each sequence starts from the stationary distribution.
+    Returns (bins, continuous y) as lists of lists. Draws from
+    the global numpy RNG (np.random.seed first), exactly like
+    make_lorenz, so train/val/test draws in sequence are distinct.
+    y stays inside roughly [0.15, 0.95] in the stable basin; bins
+    cover [0, 1]. Divergent draws (about 1 in 1000 sequences)
+    and draws that leave [lo, hi] are resampled, see
+    _narma10_seq, so the returned values never clip at the bin
+    edges; if rejections ever exceed the requested count the
+    generator raises instead of looping forever.
+    """
+    bins, cont = [], []
+    rejected = 0
+    while len(bins) < n_seq:
+        xs = _narma10_seq(length, burn, lo, hi)
+        if xs is None:
+            rejected += 1
+            if rejected > n_seq:
+                raise RuntimeError(
+                    "make_narma10: too many divergent draws; "
+                    "the recurrence is unstable, not just unlucky")
+            continue
+        xs = np.array(xs)
+        b = np.clip(np.floor((xs - lo) / (hi - lo) * K).astype(int),
+                    0, K - 1)
+        bins.append(b.tolist())
+        cont.append(xs.tolist())
+    return bins, cont
+
+
+def make_mackeyglass(n_seq, length=100, K=32, lo=0.0, hi=1.5,
+                     delay=17, burn=1000):
+    """Mackey-Glass, discrete Euler map with delay D = 17 steps,
+    the standard reservoir-computing benchmark form (NOT the
+    continuous delay-differential equation with tau = 17 time
+    units sampled at dt = 0.1; that form has a 170-step delay).
+        x(t+1) = x(t) + 0.2*x(t-D) / (1 + x(t-D)^10) - 0.1*x(t).
+    The delay makes the next value depend on the state 17 steps
+    back, so a 2-bin lookup cannot solve it. History starts at
+    0.9 plus small noise and 1000 steps are discarded as burn-in.
+    Returns (bins, continuous x). Draws from the global numpy RNG,
+    like make_lorenz. x stays inside roughly [0.3, 1.4] (the map
+    is globally bounded: the 0.2*x/(1+x^10) term vanishes for
+    large x and -0.1*x pulls it back); bins cover [0, 1.5].
+    """
+    bins, cont = [], []
+    for _ in range(n_seq):
+        hist = list(0.9 + 0.05 * np.random.randn(delay + 1))
+        for _ in range(burn):
+            x_new = (hist[-1] + 0.2 * hist[0] / (1.0 + hist[0] ** 10)
+                     - 0.1 * hist[-1])
+            hist.append(x_new)
+            hist.pop(0)
+        xs = []
+        for _ in range(length):
+            x_new = (hist[-1] + 0.2 * hist[0] / (1.0 + hist[0] ** 10)
+                     - 0.1 * hist[-1])
+            hist.append(x_new)
+            hist.pop(0)
+            xs.append(x_new)
+        xs = np.array(xs)
+        b = np.clip(np.floor((xs - lo) / (hi - lo) * K).astype(int),
+                    0, K - 1)
+        bins.append(b.tolist())
+        cont.append(xs.tolist())
+    return bins, cont
+
+
 # ---------------------------------------------------------------- models
 def chance_acc(K):
     return 1.0 / K

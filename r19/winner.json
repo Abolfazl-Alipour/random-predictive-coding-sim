@@ -1,0 +1,23 @@
+{
+  "n_levels": 2,
+  "fb_gain1": 0.1,
+  "fb_gain2": null,
+  "val_acc": 0.2682553191489362,
+  "tasks": {
+    "planted1": {
+      "alpha": 1.0,
+      "smooth_sigma": 0.0,
+      "eta_d": 0.05
+    },
+    "sine": {
+      "alpha": 1.0,
+      "smooth_sigma": 0.0,
+      "eta_d": 0.2
+    },
+    "hier": {
+      "alpha": 1.0,
+      "smooth_sigma": 0.0,
+      "eta_d": 0.05
+    }
+  }
+}
