@@ -1,0 +1,84 @@
+lorenz: merged lines=180 unique=180
+varsine: merged lines=180 unique=180
+narma10: merged lines=140 unique=140
+mackeyglass: merged lines=140 unique=140
+
+PER-TASK MEANS (mse unless noted)
+lorenz 4.2875 | 236.8511 | 4.5180 | 4.7361 | 12.5914 | 1.3961 | 4.5633 | 1.7799
+varsine 0.0270 | 0.9303 | 0.0448 | 0.0274 | 0.0560 | 0.0052 | 0.0450 | 0.0082
+narma10 0.0117 | 0.0915 | 0.0120 | 0.0104 | 0.0091 | 0.0128 | 0.0124 | 0.0070
+mackeyglass 0.0020 | 0.1911 | 0.0035 | 0.0019 | 0.0012 | 0.0009 | 0.0013 | 0.0004
+
+WALL BARS
+W1 lorenz delta-vs-persist: mean=+8.3039 CI=[7.5853,9.0225] n=20 pass=True
+W7 lorenz delta-vs-frozen: mean=+232.5637 CI=[188.6496,276.4778] n=20 pass=True
+W2 varsine delta-vs-persist: mean=+0.0290 CI=[0.0219,0.0360] n=20 pass=True
+W8 varsine delta-vs-frozen: mean=+0.9033 CI=[0.8092,0.9974] n=20 pass=True
+
+BARS: 26 pass, 24 fail, 4 n/a, total 54
+  [PASS] W1: mean=+8.3039 CI=[7.5853,9.0225] n=20
+  [FAIL] W3: mean=+0.2758 CI=[-0.3146,0.8663] n=20
+  [PASS] W5: mean=+0.1920 CI=[0.1754,0.2086] n=20
+  [PASS] W7: mean=+232.5637 CI=[188.6496,276.4778] n=20
+  [PASS] W9: mean=+7.6045 CI=[6.8184,8.3906] n=20
+  [PASS] W2: mean=+0.0290 CI=[0.0219,0.0360] n=20
+  [PASS] W4: mean=+0.0180 CI=[0.0113,0.0247] n=20
+  [PASS] W6: mean=+0.0442 CI=[0.0330,0.0555] n=20
+  [PASS] W8: mean=+0.9033 CI=[0.8092,0.9974] n=20
+  [PASS] W10: mean=+0.0187 CI=[0.0131,0.0244] n=20
+  [FAIL] N1: mean=-0.0026 CI=[-0.0030,-0.0022] n=20
+  [PASS] N3: mean=+0.0007 CI=[0.0003,0.0011] n=20
+  [PASS] N5: mean=+0.0798 CI=[0.0612,0.0984] n=20
+  [PASS] N7: mean=+0.0011 CI=[0.0007,0.0015] n=20
+  [FAIL] N2: mean=-0.0008 CI=[-0.0009,-0.0006] n=20
+  [FAIL] N4: mean=-0.0006 CI=[-0.0008,-0.0004] n=20
+  [PASS] N6: mean=+0.1892 CI=[0.1418,0.2365] n=20
+  [FAIL] N8: mean=-0.0011 CI=[-0.0013,-0.0009] n=20
+  [FAIL] R1: mean=+0.0185 CI=[-0.0122,0.0493] n=20
+  [PASS] R3: mean=+8.0380 CI=[7.5405,8.5355] n=20
+  [FAIL] R4: mean=-2.7735 CI=[-2.9972,-2.5498] n=20
+  [FAIL] C1: mean=-0.0038 CI=[-0.4054,0.3979] n=20
+  [PASS] C2: mean=+8.3001 CI=[7.6400,8.9603] n=20
+  [n/a] F1-lorenz: mean=+0.2306 CI=[-0.5322,0.9934] n=20
+  [PASS] F2-lorenz: mean=+0.3161 CI=[0.3101,0.3221] n=20
+  [FAIL] B1: mean=-0.4487 CI=[-1.0270,0.1297] n=20
+  [PASS] B2: mean=+7.8553 CI=[7.0127,8.6978] n=20
+  [FAIL] R1: mean=+0.0001 CI=[-0.0001,0.0004] n=20
+  [PASS] R3: mean=+0.0137 CI=[0.0088,0.0185] n=20
+  [FAIL] R4: mean=-0.0341 CI=[-0.0376,-0.0306] n=20
+  [FAIL] C1: mean=-0.0121 CI=[-0.0183,-0.0059] n=20
+  [PASS] C2: mean=+0.0168 CI=[0.0097,0.0240] n=20
+  [n/a] F1-varsine: mean=+0.0178 CI=[0.0020,0.0337] n=20
+  [PASS] F2-varsine: mean=+0.3127 CI=[0.3063,0.3191] n=20
+  [FAIL] B1: mean=-0.0005 CI=[-0.0037,0.0027] n=20
+  [PASS] B2: mean=+0.0285 CI=[0.0211,0.0359] n=20
+  [FAIL] R1: mean=-0.0000 CI=[-0.0000,0.0000] n=20
+  [PASS] R3: mean=+0.0011 CI=[0.0009,0.0014] n=20
+  [FAIL] R4: mean=-0.0009 CI=[-0.0011,-0.0008] n=20
+  [PASS] C1: mean=+0.0024 CI=[0.0019,0.0029] n=20
+  [FAIL] C2: mean=-0.0002 CI=[-0.0007,0.0003] n=20
+  [n/a] F1-narma10: mean=+0.0003 CI=[-0.0002,0.0008] n=20
+  [PASS] F2-narma10: mean=+0.3424 CI=[0.3379,0.3470] n=20
+  [PASS] B1: mean=+0.0013 CI=[0.0011,0.0016] n=20
+  [FAIL] B2: mean=-0.0013 CI=[-0.0016,-0.0010] n=20
+  [FAIL] R1: mean=+0.0000 CI=[-0.0000,0.0000] n=20
+  [FAIL] R3: mean=-0.0020 CI=[-0.0023,-0.0018] n=20
+  [FAIL] R4: mean=-0.0029 CI=[-0.0031,-0.0026] n=20
+  [FAIL] C1: mean=-0.0002 CI=[-0.0004,-0.0001] n=20
+  [FAIL] C2: mean=-0.0010 CI=[-0.0012,-0.0008] n=20
+  [n/a] F1-mackeyglass: mean=+0.0015 CI=[0.0003,0.0028] n=20
+  [PASS] F2-mackeyglass: mean=+0.3103 CI=[0.3038,0.3169] n=20
+  [FAIL] B1: mean=+0.0000 CI=[-0.0001,0.0002] n=20
+  [FAIL] B2: mean=-0.0007 CI=[-0.0010,-0.0005] n=20
+
+DIAGNOSTICS
+lorenz centroid 5/10/20: 8.4300/4.2912/3.5158 | ridge trained std/raw 4.5533/4.7122 frozen std/raw 4.5719/4.7118 | wire-on-frozen +22.2907
+varsine centroid 5/10/20: 0.1121/0.0391/0.0247 | ridge trained std/raw 0.0423/0.0439 frozen std/raw 0.0424/0.0435 | wire-on-frozen +0.0282
+narma10 centroid 5/10/20: 0.0124/0.0093/0.0091 | ridge trained std/raw 0.0079/0.0080 frozen std/raw 0.0079/0.0079 | wire-on-frozen +0.0134
+mackeyglass centroid 5/10/20: 0.0071/0.0022/0.0018 | ridge trained std/raw 0.0032/0.0034 frozen std/raw 0.0033/0.0034 | wire-on-frozen +0.0066
+
+VAL WINNERS
+lorenz: token winner grid|G4 mean=4.6268 | bump winner bumpsigma|2.0 mean=4.3965
+varsine: token winner grid|G4 mean=0.0240 | bump winner bumpsigma|3.0 mean=0.0236
+narma10: token winner grid|G5 mean=0.0109 | bump winner bumpsigma|3.0 mean=0.0103
+mackeyglass: token winner grid|G1 mean=0.0021 | bump winner bumpsigma|2.0 mean=0.0022

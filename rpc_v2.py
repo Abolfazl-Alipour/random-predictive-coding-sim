@@ -419,6 +419,115 @@ ASSUMPTION A24 (delta rule, Nov 26): the critics' joint
   pre code (y2_prev - mean(y2_prev)), at eta_b. It removes
   the DC mode without any error signal, so it separates
   "centering fixes it" from "the error term fixes it".
+ASSUMPTION A26 (top-down feedback wire, round 17, Nov 26):
+  the distal drive d1 never fed back into either module, so
+  no top-down pathway existed to clamp (section 48 limit).
+  A26 adds one: a fixed random matrix W_fb (n_res x n_out),
+  entries randn / sqrt(n_out), never trained, and the term
+  fb = fb_gain * (W_fb @ d1) is added into module 1's
+  reservoir drive alongside the bottom-up input. d1 at step
+  t predicts token t from the previous context, so the
+  feedback arriving while module 1 processes token t is the
+  prediction of the current input: prediction and input
+  coincide at the lower level, the Rao-Ballard form. Default
+  fb_gain = 0.0 leaves every previous result exactly
+  unchanged (W_fb and the shuffle permutation are drawn
+  after all other init draws, so the RNG stream for the
+  rest of the network is untouched). Test-time clamp modes
+  via step(fb_mode=...): "on", "cut" (fb = 0), "shuffle"
+  (fb from a fixed random permutation of d1's coordinates,
+  same magnitude, no information). The error (p1 - d1)
+  still drives only the W_dist1 delta update; module 1 has
+  no plastic weights in this config.
+ASSUMPTION A27 (continuous-value input bump, round 18, Nov 26):
+  the round-15 continuous tasks feed the network a one-hot code
+  of the quantised bin, so the input carries no within-bin value
+  (see _encode). The delta rule then trains d1 to match p1, and
+  p1 is a function of the bin code only, so the drive cannot
+  carry within-bin value either, except through history. A27 is
+  the input-side fix to test: feed the network a Gaussian bump
+  centred on the TRUE continuous value instead of the bin index.
+  cont_bump(value, K, lo, hi, sigma) maps the value to a
+  continuous bin position c = (value - lo) / (hi - lo) * K - 0.5
+  (so a value at a bin centre lands on the integer bin index)
+  and returns exp(-0.5 * ((j - c) / sigma) ** 2) over j = 0..K-1,
+  unit L2 norm, the same form as _encode with a continuous
+  centre. At a bin centre with the same sigma it equals _encode
+  exactly. The bump is fed through step_vec (d_in = K), so the
+  prototypes, calibration, delta rule, and readout are all
+  unchanged: only the input encoding changes. The learning
+  target is still p1, but p1 now varies within a bin, so the
+  target content changes as a consequence of the input change
+  (see PROTOCOL-R18-CONTINUOUS.md self-critique 3). No other
+  behaviour changes.
+ASSUMPTION A29 (aligned subtractive feedback + locally learned
+feedback wire + blank token, round 20, Nov 27): round 17 tested
+the wrong wire geometry. A26 is a fixed random ADDITIVE map
+(+W_fb @ d1). Rao and Ballard (1999) and Chapter 3 specify
+ALIGNED SUBTRACTIVE feedback: the top-down prediction is
+subtracted from the lower level through the transpose of the
+lower level's own readout map. A29 adds a constructor option
+fb_wire in {"random", "aligned", "learned"} (default "random",
+so every previous result reproduces exactly):
+- "aligned": W_fb is replaced at init by -W_prox.T (mod1's
+  readout transpose), rescaled to the Frobenius norm of the
+  random W_fb it replaces, so at the same fb_gain the drive
+  magnitude matches the random wire and only the direction
+  differs. The random W_fb is still drawn first (same RNG
+  stream), then overwritten, so the init stream is identical
+  for all three wire types.
+- "learned": W_fb starts as the aligned map and is trained by
+  a local composite delta rule (see _step_core): it learns the
+  map whose back-projection through W_prox subtracts the
+  prediction from the code, i.e. W_prox @ (W_fb @ d1) ≈ -d1.
+  The update is gradient descent on (1/2)||-d1 - W_prox @ W_fb
+  @ d1||^2, in NLMS form: delta W_fb = eta_fb / (||d1||^2 + 1)
+  * outer(W_prox.T @ e, d1) with e = -d1 - W_prox @ W_fb @ d1.
+  It uses only d1, W_prox, and W_fb (all local to module 1),
+  no backprop through time, no global information. NOTE: this
+  is NOT AGY's literal formula (delta W_fb ∝ (r1 - W_fb d1)
+  d1^T). That rule was implemented first and measured: on seed
+  241 it collapses at gain 1.0 (normal_acc 0.061, feedback
+  4.8x the total drive) and rotates AWAY from the aligned
+  direction at every gain (fb_align -0.02 at 0.1, 0.11 at 0.3),
+  because d1 barely predicts the reservoir state r1 (r1 is
+  mostly driven by the current input) and the target has state
+  scale while the drive has drive scale. The composite rule
+  fixes both defects: its target is the code (drive scale),
+  and its fixed point is the back-projection (the aligned
+  direction). The driver records fb_align and fb_norm after
+  training to document whether learning kept the subtractive
+  geometry. W_fb entries are clamped at w_max (a safety rail
+  only; no row-norm preservation, because the map's scale is
+  the feedback magnitude). fb_eta defaults to eta_d.
+The feedback term in the drive is unchanged in form
+(fb = fb_gain * (W_fb @ d1), added into mod1 before tanh);
+only the matrix content and (for "learned") its training
+change. The timing subtlety from the round-17 critiques
+carries over: d1(t) and pred(t) are computed before fb(t)
+enters mod1, so a one-step omission decode at t cannot test
+fb(t); the rollout (round 20, experiment D) is where fb(t)
+does work, because the input is blank and fb is the only
+external drive. build_prototypes still runs with fb=None,
+so prototypes stay in the wire-off coordinate system; the
+smoke test measures whether that costs the aligned wire
+anything (diagnostic, not a bar).
+A29 also adds a blank input token: _encode returns the zero
+vector for tok == K (one past the last class). No existing
+code passes token K, so no previous result changes. The
+blank token is how the driver feeds occluded positions
+(round 20) through the ordinary step() path; the rollout
+feeds the zero vector directly through _step_core, as the
+round-16/17 omission code does.
+A29 also records the total pre-feedback drive norm
+(last_drive_norm = ||W_in @ e_sparse + W_res @ r - inhib||)
+in ReservoirModule.forward, and _step_core returns
+fb_drive_ratio = ||fb|| / ||total drive||. Round 17's
+fb_rms_ratio divided by the bottom-up norm only, omitting
+the recurrent drive and overstating the feedback fraction
+by about 1.7x (AGY check 1); fb_drive_ratio is the
+corrected measure. Both are reported; the bars use
+fb_drive_ratio.
 ASSUMPTION A5 (row-norm preservation after each Hebbian update):
   after every W_dist1 / W_prox update, each row is rescaled to its
   initial L2 norm. Justification: the v1 rules as written are purely
@@ -456,6 +565,32 @@ def make_data(n_seq=200, length=24, K=16, motifs=((1, 2, 3), (5, 6, 7), (9, 10, 
         data.append(seq)
     return data
 
+
+def cont_bump(value, K, lo, hi, sigma):
+    """A27: Gaussian bump centred on a continuous value.
+
+    Same form as RPCNetwork._encode with smooth_sigma, but the
+    centre is the true continuous position c = (value - lo) /
+    (hi - lo) * K - 0.5 instead of the integer bin index, so the
+    input carries within-bin value. Unit L2 norm. At a bin centre
+    it equals _encode(bin) exactly for the same sigma.
+    """
+    j = torch.arange(K, dtype=torch.float32)
+    c = (float(value) - lo) / (hi - lo) * K - 0.5
+    x = torch.exp(-0.5 * ((j - c) / sigma) ** 2)
+    return x / x.norm()
+
+
+def cont_bin(value, K, lo, hi):
+    """A27: bin index of a continuous value, the same mapping the
+    data generators use: floor((value - lo) / (hi - lo) * K),
+    clipped to [0, K-1]. Matches baselines.make_lorenz and
+    rpc_spatial.make_sine / rpc_round15.make_var_sine_cont."""
+    import math as _math
+    return int(min(max(_math.floor((float(value) - lo) / (hi - lo) * K),
+                       0), K - 1))
+
+
 # ---------- fixed random reservoir module (identical to v1) ----------
 class ReservoirModule(torch.nn.Module):
     def __init__(self, d_in, n_exp=256, n_res=200, n_out=64,
@@ -484,15 +619,27 @@ class ReservoirModule(torch.nn.Module):
         self.r.zero_()
         self.inhib.zero_()
 
-    def forward(self, u):
+    def forward(self, u, fb=None):
         e = torch.relu(self.W_exp @ u)
         if self.surround_beta > 0:  # A9a: subtract the pool mean.
             e = torch.relu(e - self.surround_beta * e.mean())
         top = torch.topk(e, self.k_e).indices
         e_sparse = torch.zeros_like(e)
         e_sparse[top] = e[top]
-        r_new = (1 - self.alpha) * self.r + self.alpha * torch.tanh(
-            self.W_in @ e_sparse + self.W_res @ self.r - self.inhib)
+        # A26: record the bottom-up and feedback drive norms so the
+        # caller can report their ratio; fb=None leaves the drive
+        # exactly as before.
+        bu = self.W_in @ e_sparse
+        self.last_bu_norm = float(bu.norm())
+        self.last_fb_norm = float(fb.norm()) if fb is not None else 0.0
+        drive = bu + self.W_res @ self.r - self.inhib
+        # A29: total pre-feedback drive norm, so the feedback
+        # fraction is measured against the full drive (round 17's
+        # fb_rms_ratio omitted the recurrent term).
+        self.last_drive_norm = float(drive.norm())
+        if fb is not None:
+            drive = drive + fb
+        r_new = (1 - self.alpha) * self.r + self.alpha * torch.tanh(drive)
         self.r.copy_(r_new)
         self.inhib.zero_()
         p = self.W_prox @ self.r
@@ -512,7 +659,8 @@ class RPCNetwork(torch.nn.Module):
                  learn_prox1=False, split_proto=False, graded_conf=False,
                  dot_proto=False, full_code=False, knn_readout=False,
                  pre_sharpen=0.0, read_sharpen=0.0, proto_proj=False,
-                 drive_proto=False, ema_decay=0.99):
+                 drive_proto=False, ema_decay=0.99, fb_gain=0.0,
+                 fb_wire="random", fb_eta=None):
         # center_proto: subtract the mean prototype (over classes that
         # appear in train) from every prototype and from d1 before the
         # cosine prediction. Train-data means only, no new learned
@@ -614,6 +762,28 @@ class RPCNetwork(torch.nn.Module):
         self.register_buffer("y2_prev2", torch.zeros(n_out))
         self.register_buffer("r2_prev", torch.zeros(n_res))
         self.register_buffer("p2_prev", torch.zeros(n_out))
+        # A26 (round 17): top-down feedback wire. Drawn AFTER all
+        # other init draws, so fb_gain=0.0 reproduces every previous
+        # result exactly. W_fb is fixed random, never trained;
+        # fb_perm is the fixed shuffle permutation for the
+        # fb_mode="shuffle" test-time clamp.
+        if fb_wire not in ("random", "aligned", "learned"):
+            raise ValueError(fb_wire)
+        self.fb_gain = fb_gain
+        self.register_buffer("W_fb",
+                             torch.randn(n_res, n_out) / math.sqrt(n_out))
+        self.register_buffer("fb_perm", torch.randperm(n_out))
+        # A29 (round 20): aligned / learned feedback wire. The
+        # random W_fb above is always drawn (same RNG stream for
+        # all wire types), then overwritten for "aligned" and
+        # "learned" by the norm-matched -W_prox.T map. With
+        # fb_wire="random" (the default) nothing changes.
+        self.fb_wire = fb_wire
+        self.fb_eta = eta_d if fb_eta is None else fb_eta
+        if fb_wire in ("aligned", "learned"):
+            aligned = -self.mod1.W_prox.T
+            scale = self.W_fb.norm() / aligned.norm().clamp(min=1e-9)
+            self.W_fb.copy_(aligned * scale)
         self.prototypes = None
         # Calibration scales (A1), set by calibrate() on TRAIN data only.
         self.sd_p1 = 1.0
@@ -867,6 +1037,8 @@ class RPCNetwork(torch.nn.Module):
         centred on the token, unit L2 norm: neighbouring bins share
         input, so the code carries metric structure instead of making
         every pair of bins orthogonal."""
+        if int(tok) == self.K:  # A29 blank token: no bottom-up input.
+            return torch.zeros(self.K)
         if self.smooth_sigma > 0:
             j = torch.arange(self.K, dtype=torch.float32)
             x = torch.exp(-0.5 * ((j - float(tok)) / self.smooth_sigma) ** 2)
@@ -1019,27 +1191,42 @@ class RPCNetwork(torch.nn.Module):
         return idx % self.K if self.split_proto else idx
 
     def step(self, tok, train=True, use_confirmation=True, use_burst=True,
-             plasticity=True):
+             plasticity=True, fb_mode="on"):
         x = self._encode(tok)
         return self._step_core(x, train=train, use_confirmation=use_confirmation,
-                               use_burst=use_burst, plasticity=plasticity)
+                               use_burst=use_burst, plasticity=plasticity,
+                               fb_mode=fb_mode)
 
     def step_vec(self, x, train=True, use_confirmation=True, use_burst=True,
-                 plasticity=True):
+                 plasticity=True, fb_mode="on"):
         """Same step, but x is a continuous input vector of dim d_in
         (e.g. a leaky-integrator vector) instead of a token index.
         Prediction is still a class index via the prototypes."""
         return self._step_core(torch.as_tensor(x, dtype=torch.float32),
                                train=train, use_confirmation=use_confirmation,
-                               use_burst=use_burst, plasticity=plasticity)
+                               use_burst=use_burst, plasticity=plasticity,
+                               fb_mode=fb_mode)
 
     def _step_core(self, x, train=True, use_confirmation=True, use_burst=True,
-                   plasticity=True):
+                   plasticity=True, fb_mode="on"):
         with torch.no_grad():
             # Snapshot for the probe return values (section 20).
             y2_prev = self.y2_prev.clone()
             d1 = self._distal_drive()
-            p1, r1, _ = self.mod1.forward(x)
+            # A26: top-down feedback into module 1. d1 predicts the
+            # current token, so the feedback arriving with the input
+            # is the prediction of that input. "cut" removes it,
+            # "shuffle" keeps its magnitude with a fixed random
+            # permutation of its coordinates (no information).
+            if self.fb_gain == 0.0 or fb_mode == "cut":
+                fb = None
+            elif fb_mode == "shuffle":
+                fb = self.fb_gain * (self.W_fb @ d1[self.fb_perm])
+            elif fb_mode == "on":
+                fb = self.fb_gain * (self.W_fb @ d1)
+            else:
+                raise ValueError(fb_mode)
+            p1, r1, _ = self.mod1.forward(x, fb=fb)
             u2 = self._mod2_input(x, r1)
             p2, r2, e2 = self.mod2.forward(u2)
             # A1: standardised drives; thresholds are z-scores.
@@ -1163,6 +1350,26 @@ class RPCNetwork(torch.nn.Module):
                         if self.norm_rows:
                             n = self.W_dist1b.norm(dim=1, keepdim=True).clamp(min=1e-9)
                             self.W_dist1b.mul_(self.W_dist1b_row0[:, None] / n)
+                if self.fb_wire == "learned":
+                    # A29: learn the feedback map as a back-projection:
+                    # W_fb should satisfy W_prox @ (W_fb @ d1) ≈ -d1,
+                    # so the feedback, passed through the readout,
+                    # subtracts the prediction from the code (the
+                    # Rao-Ballard form). Gradient descent on
+                    # (1/2)||-d1 - W_prox @ W_fb @ d1||^2, in NLMS
+                    # form. Uses only d1, W_prox, and W_fb (local
+                    # to module 1). Runs only when train and
+                    # plasticity are on; frozen nets never move W_fb.
+                    # (AGY's literal r1-target rule was tried first
+                    # and collapses: it targets the reservoir state,
+                    # which d1 barely predicts, at state scale.)
+                    fb_pred = self.W_fb @ d1
+                    fb_err = -d1 - self.mod1.W_prox @ fb_pred
+                    fb_denom = float(d1 @ d1) + 1.0
+                    self.W_fb += ((self.fb_eta / fb_denom) *
+                                  torch.outer(
+                                      self.mod1.W_prox.T @ fb_err, d1))
+                    self.W_fb.clamp_(-self.w_max, self.w_max)
                 if use_confirmation:
                     d2 = self.W_conf @ b1
                     d2n = d2 / self.sd_d2
@@ -1181,6 +1388,19 @@ class RPCNetwork(torch.nn.Module):
             self.p2_prev.copy_(p2n)
         return {"pred": pred, "burst_rate": float(b1.mean()),
                 "y2_rate": float(y2.mean()), "g": g,
+                # A26: feedback-to-bottom-up drive norm ratio at this
+                # step (0.0 when the wire is off or cut). The driver
+                # averages it over the test passes.
+                "fb_rms_ratio": (self.mod1.last_fb_norm /
+                                 self.mod1.last_bu_norm
+                                 if self.mod1.last_bu_norm > 0 else 0.0),
+                # A29: feedback-to-TOTAL-drive ratio (includes the
+                # recurrent drive the A26 ratio omits). The bars use
+                # this one; the A26 ratio is kept for comparability.
+                "fb_drive_ratio": (self.mod1.last_fb_norm /
+                                   self.mod1.last_drive_norm
+                                   if self.mod1.last_drive_norm > 0
+                                   else 0.0),
                 # d1 is returned (no behaviour change) so a caller can
                 # fit a learned readout on the distal drive (section 18).
                 # d1 at step t is computed from y2_prev only, before the

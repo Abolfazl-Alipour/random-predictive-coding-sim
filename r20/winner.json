@@ -1,0 +1,26 @@
+{
+  "aligned": {
+    "fb_gain": 1.0,
+    "val_gap": 0.017156585641605427,
+    "val_p1_cos": 0.8048130133288062,
+    "val_acc": 0.23634782608695654,
+    "gate": true,
+    "gate_failed": false
+  },
+  "learned": {
+    "fb_gain": 1.0,
+    "val_gap": -0.0016393442622950837,
+    "val_p1_cos": 0.7509218055774336,
+    "val_acc": 0.2316521739130435,
+    "gate": true,
+    "gate_failed": false
+  },
+  "random": {
+    "fb_gain": 1.0,
+    "val_gap": -0.08828756849147393,
+    "val_p1_cos": 0.7536064563587955,
+    "val_acc": 0.19043478260869567,
+    "gate": true,
+    "gate_failed": false
+  }
+}
